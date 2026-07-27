@@ -21,6 +21,194 @@
       padding: 16px;
     }
 
+    .dashboard {
+      display: grid;
+      grid-template-columns: 260px 1fr 1fr;
+      gap: 16px;
+      height: 100%;
+    }
+
+    .card {
+      background-color: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .card-header {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #94a3b8;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-card {
+      justify-content: space-between;
+    }
+
+    .clock-box {
+      text-align: center;
+      padding: 10px 0;
+    }
+
+    .time {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    .date {
+      font-size: 0.95rem;
+      color: #94a3b8;
+      margin-top: 4px;
+    }
+
+    .location-box {
+      background-color: #0f172a;
+      border-radius: 8px;
+      padding: 16px;
+      border-left: 4px solid #3b82f6;
+    }
+
+    .location-title {
+      font-size: 0.85rem;
+      color: #94a3b8;
+      margin-bottom: 6px;
+    }
+
+    .location-badge {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #38bdf8;
+    }
+
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      border-radius: 8px;
+      background-color: #ffffff;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="dashboard">
+
+    <!-- Column 1: Status & Clock -->
+    <div class="card status-card">
+      <div>
+        <div class="card-header">📍 Location & Status</div>
+        <div class="location-box">
+          <div class="location-title">CURRENT STATUS</div>
+          <div id="location-badge" class="location-badge">Updating...</div>
+        </div>
+      </div>
+
+      <div class="clock-box">
+        <div id="time" class="time">00:00</div>
+        <div id="date" class="date">Loading date...</div>
+      </div>
+    </div>
+
+    <!-- Column 2: Outlook Calendar -->
+    <div class="card">
+      <div class="card-header">📅 Today's Schedule</div>
+      <!-- Append #view/day to force day view -->
+      <iframe 
+        id="outlook-iframe" 
+        src="https://outlook.office365.com/owa/calendar/30191564131e4b8394c04f66fa6945b8@wzzm13.com/0f08c3d6e50d4990a24565e07886e96d12628884093217305022/calendar.html#view/day">
+      </iframe>
+    </div>
+
+    <!-- Column 3: Monday.com Board -->
+    <div class="card">
+      <div class="card-header">📋 Current Tasks</div>
+      <!-- Must be the view.monday.com/embed/... URL -->
+      <iframe 
+        id="monday-iframe" 
+        src="PASTE_YOUR_MONDAY_EMBED_URL_HERE">
+      </iframe>
+    </div>
+
+  </div>
+
+  <script>
+    // Clock Script
+    function updateClock() {
+      const now = new Date();
+      const timeOptions = { hour: 'numeric', minute: '2-digit', hour12: true };
+      document.getElementById('time').innerText = now.toLocaleTimeString([], timeOptions);
+
+      const dateOptions = { weekday: 'short', month: 'short', day: 'numeric' };
+      document.getElementById('date').innerText = now.toLocaleDateString([], dateOptions);
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // Schedule Location Script
+    function updateLocationBySchedule() {
+      const now = new Date();
+      const day = now.getDay();
+      const hour = now.getHours();
+      const badge = document.getElementById('location-badge');
+
+      if (day >= 1 && day <= 5) {
+        if (hour >= 8 && hour < 17) {
+          badge.innerText = "In Office";
+          badge.style.color = "#4ade80";
+        } else {
+          badge.innerText = "Off the Clock";
+          badge.style.color = "#94a3b8";
+        }
+      } else {
+        badge.innerText = "Out of Office";
+        badge.style.color = "#f87171";
+      }
+    }
+    setInterval(updateLocationBySchedule, 60000);
+    updateLocationBySchedule();
+
+    // Refresh Outlook iframe every 10 mins
+    setInterval(() => {
+      const outlookIframe = document.getElementById('outlook-iframe');
+      const baseSrc = outlookIframe.src.split('#')[0].split('?')[0];
+      outlookIframe.src = baseSrc + '?refresh=' + new Date().getTime() + '#view/day';
+    }, 600000);
+  </script>
+
+</body>
+</html><!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Office Door Sign</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: #0f172a; /* Deep slate dark mode */
+      color: #f8fafc;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+      padding: 16px;
+    }
+
     /* Landscape 3-Column Layout */
     .dashboard {
       display: grid;
