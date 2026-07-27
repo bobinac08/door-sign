@@ -27,7 +27,7 @@
       padding: 16px;
     }
 
-    /* 2-Column Layout (Expanded until Monday.com issue is resolved) */
+    /* Clean 2-Column Layout */
     .dashboard {
       display: grid;
       grid-template-columns: 280px 1fr;
@@ -97,7 +97,7 @@
       color: #38bdf8;
     }
 
-    /* Custom styles to force FullCalendar into sleek dark mode */
+    /* FullCalendar Dark Mode Override */
     #calendar {
       height: 100%;
       overflow-y: auto;
@@ -166,7 +166,7 @@
   </div>
 
   <script>
-    // 1. DYNAMIC CLOCK
+    // 1. CLOCK SCRIPT
     function updateClock() {
       const now = new Date();
       const timeOptions = { hour: 'numeric', minute: '2-digit', hour12: true };
@@ -178,7 +178,7 @@
     setInterval(updateClock, 1000);
     updateClock();
 
-    // 2. AUTOMATIC LOCATION BY WORK SCHEDULE
+    // 2. LOCATION BY SCHEDULE SCRIPT
     function updateLocationBySchedule() {
       const now = new Date();
       const day = now.getDay();
@@ -188,37 +188,43 @@
       if (day >= 1 && day <= 5) {
         if (hour >= 8 && hour < 17) {
           badge.innerText = "In Office";
-          badge.style.color = "#4ade80"; // Green
+          badge.style.color = "#4ade80";
         } else {
           badge.innerText = "Off the Clock";
-          badge.style.color = "#94a3b8"; // Gray
+          badge.style.color = "#94a3b8";
         }
       } else {
         badge.innerText = "Out of Office";
-        badge.style.color = "#f87171"; // Red
+        badge.style.color = "#f87171";
       }
     }
     setInterval(updateLocationBySchedule, 60000);
     updateLocationBySchedule();
 
-    // 3. FULLCALENDAR ICS PARSER (FORCED TODAY'S LIST VIEW)
+    // 3. FULLCALENDAR ICS PARSER WITH CORS PROXY
     document.addEventListener('DOMContentLoaded', function() {
       const calendarEl = document.getElementById('calendar');
       
+      // Your raw Outlook ICS URL
+      const rawIcsUrl = 'https://outlook.office365.com/owa/calendar/30191564131e4b8394c04f66fa6945b8@wzzm13.com/0f08c3d6e50d4990a24565e07886e96d12628884093217305022/calendar.ics';
+      
+      // Bypasses browser CORS restriction
+      const proxiedIcsUrl = 'https://corsproxy.io/?' + encodeURIComponent(rawIcsUrl);
+
       const calendar = new FullCalendar.Calendar(calendarEl, {
         plugins: [ FullCalendar.iCalendarPlugin ],
         initialView: 'listDay', // Strictly forces today's list view
-        headerToolbar: false,  // Removes unnecessary buttons
+        headerToolbar: false,  // Removes header clutter
         noEventsContent: 'No events scheduled for today.',
         events: {
-          url: 'https://outlook.office365.com/owa/calendar/30191564131e4b8394c04f66fa6945b8@wzzm13.com/0f08c3d6e50d4990a24565e07886e96d12628884093217305022/calendar.ics',
+          url: proxiedIcsUrl,
           format: 'ics'
         }
       });
 
       calendar.render();
 
-      // Refresh calendar feed every 10 minutes
+      // Refresh event feed every 10 minutes
       setInterval(() => {
         calendar.refetchEvents();
       }, 600000);
