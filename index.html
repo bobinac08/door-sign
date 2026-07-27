@@ -27,7 +27,7 @@
       padding: 16px;
     }
 
-    /* Clean 2-Column Layout */
+    /* Landscape 2-Column Layout */
     .dashboard {
       display: grid;
       grid-template-columns: 280px 1fr;
@@ -97,7 +97,7 @@
       color: #38bdf8;
     }
 
-    /* FullCalendar Dark Mode Override */
+    /* FullCalendar Dark Mode Styling */
     #calendar {
       height: 100%;
       overflow-y: auto;
@@ -118,22 +118,33 @@
     .fc-list-day-cushion {
       background-color: #0f172a !important;
       color: #38bdf8 !important;
+      padding: 12px !important;
+      font-size: 1.1rem !important;
+    }
+
+    .fc-list-event {
+      cursor: default;
     }
 
     .fc-list-event-title {
       color: #ffffff !important;
-      font-size: 1.05rem;
+      font-size: 1.1rem !important;
+      padding: 12px !important;
     }
 
     .fc-list-event-time {
       color: #94a3b8 !important;
-      font-size: 0.95rem;
+      font-size: 1rem !important;
+      padding: 12px !important;
+      font-weight: 600;
     }
 
     .fc-list-empty {
       background-color: transparent !important;
       color: #94a3b8;
-      font-size: 1.1rem;
+      font-size: 1.2rem;
+      padding: 40px !important;
+      text-align: center;
     }
   </style>
 </head>
@@ -166,7 +177,7 @@
   </div>
 
   <script>
-    // 1. CLOCK SCRIPT
+    // 1. DYNAMIC CLOCK
     function updateClock() {
       const now = new Date();
       const timeOptions = { hour: 'numeric', minute: '2-digit', hour12: true };
@@ -178,7 +189,7 @@
     setInterval(updateClock, 1000);
     updateClock();
 
-    // 2. LOCATION BY SCHEDULE SCRIPT
+    // 2. AUTOMATIC LOCATION BY WORK SCHEDULE
     function updateLocationBySchedule() {
       const now = new Date();
       const day = now.getDay();
@@ -188,33 +199,32 @@
       if (day >= 1 && day <= 5) {
         if (hour >= 8 && hour < 17) {
           badge.innerText = "In Office";
-          badge.style.color = "#4ade80";
+          badge.style.color = "#4ade80"; // Green
         } else {
           badge.innerText = "Off the Clock";
-          badge.style.color = "#94a3b8";
+          badge.style.color = "#94a3b8"; // Gray
         }
       } else {
         badge.innerText = "Out of Office";
-        badge.style.color = "#f87171";
+        badge.style.color = "#f87171"; // Red
       }
     }
     setInterval(updateLocationBySchedule, 60000);
     updateLocationBySchedule();
 
-    // 3. FULLCALENDAR ICS PARSER WITH CORS PROXY
+    // 3. FULLCALENDAR ICS PARSER WITH CORRECTED PROXY FORMAT
     document.addEventListener('DOMContentLoaded', function() {
       const calendarEl = document.getElementById('calendar');
       
-      // Your raw Outlook ICS URL
       const rawIcsUrl = 'https://outlook.office365.com/owa/calendar/30191564131e4b8394c04f66fa6945b8@wzzm13.com/0f08c3d6e50d4990a24565e07886e96d12628884093217305022/calendar.ics';
       
-      // Bypasses browser CORS restriction
-      const proxiedIcsUrl = 'https://corsproxy.io/?' + encodeURIComponent(rawIcsUrl);
+      // Updated to standard CorsProxy query string format
+      const proxiedIcsUrl = 'https://corsproxy.io/?url=' + encodeURIComponent(rawIcsUrl);
 
       const calendar = new FullCalendar.Calendar(calendarEl, {
         plugins: [ FullCalendar.iCalendarPlugin ],
         initialView: 'listDay', // Strictly forces today's list view
-        headerToolbar: false,  // Removes header clutter
+        headerToolbar: false,  // Hides extra header elements
         noEventsContent: 'No events scheduled for today.',
         events: {
           url: proxiedIcsUrl,
@@ -224,7 +234,7 @@
 
       calendar.render();
 
-      // Refresh event feed every 10 minutes
+      // Refetch events every 10 minutes
       setInterval(() => {
         calendar.refetchEvents();
       }, 600000);
