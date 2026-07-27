@@ -119,16 +119,21 @@
       </div>
     </div>
 
-    <!-- Column 2: Outlook Calendar -->
-    <div class="card">
-      <div class="card-header">📅 Today's Schedule</div>
-      <!-- Append #view/day to force day view -->
-      <iframe 
-        id="outlook-iframe" 
-        src="https://outlook.office365.com/owa/calendar/30191564131e4b8394c04f66fa6945b8@wzzm13.com/0f08c3d6e50d4990a24565e07886e96d12628884093217305022/calendar.html#view/day">
-      </iframe>
-    </div>
-
+   <!-- Column 2: Outlook Calendar (Forced Day View) -->
+<div class="card" style="align-items: center; justify-content: center;">
+  <div class="card-header" style="width: 100%;">📅 Today's Schedule</div>
+  
+  <!-- Outer mask clips the frame -->
+  <div style="width: 100%; height: 100%; overflow: hidden; position: relative;">
+    <!-- Inner frame forced to 340px width triggers Outlook Mobile/Day View -->
+    <iframe 
+      id="outlook-iframe" 
+      src="https://outlook.office365.com/owa/calendar/30191564131e4b8394c04f66fa6945b8@wzzm13.com/0f08c3d6e50d4990a24565e07886e96d12628884093217305022/calendar.html"
+      style="position: absolute; top: 0; left: 0; width: 340px; height: 100%; transform: scale(1.1); transform-origin: top left;">
+    </iframe>
+  </div>
+</div>
+    
     <!-- Column 3: Monday.com Board -->
     <div class="card">
       <div class="card-header">📋 Current Tasks</div>
