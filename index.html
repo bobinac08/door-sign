@@ -187,28 +187,54 @@
     setInterval(updateClock, 1000);
     updateClock();
 
-    // 2. LOCATION BY SCHEDULE
-    function updateLocationBySchedule() {
+// 2. LOCATION BY WIFI & TIME (DWEET.CC)
+    async function updateLocationStatus() {
       const now = new Date();
       const day = now.getDay();
       const hour = now.getHours();
       const badge = document.getElementById('location-badge');
 
-      if (day >= 1 && day <= 5) {
-        if (hour >= 8 && hour < 17) {
-          badge.innerText = "In Office";
-          badge.style.color = "#4ade80";
-        } else {
-          badge.innerText = "Off the Clock";
-          badge.style.color = "#94a3b8";
+      // GATEKEEPER: Check if it's outside working hours (Mon-Fri, 8 AM - 4 PM)
+      // Note: hour < 8 means before 8:00 AM, hour >= 16 means 4:00 PM or later
+      if (day === 0 || day === 6 || hour < 8 || hour >= 16) {
+        badge.innerText = "Off the Clock";
+        badge.style.color = "#94a3b8"; // Slate Gray
+        return; // Stops the function here so it ignores Dweet entirely
+      }
+
+      // If it IS working hours, check Dweet for the latest iPhone update
+      try {
+        const response = await fetch('https://dweet.cc/get/latest/dweet/for/bobinac-door-sign-19860429');
+        const data = await response.json();
+        
+        if (data.this === "succeeded" && data.with && data.with.length > 0) {
+          const currentStatus = data.with[0].content.status;
+          
+          badge.innerText = currentStatus;
+          
+          // Color coding for your specific statuses
+          if (currentStatus === "In Office") {
+            badge.style.color = "#4ade80"; // Bright Green
+          } else if (currentStatus === "Working From Home") {
+            badge.style.color = "#38bdf8"; // Light Blue
+          } else if (currentStatus === "Stepped Out") {
+            badge.style.color = "#facc15"; // Yellow
+          } else if (currentStatus === "On Lunch") {
+            badge.style.color = "#fb923c"; // Orange
+          } else if (currentStatus === "On Shoot") {
+            badge.style.color = "#f87171"; // Red
+          } else {
+            badge.style.color = "#ffffff"; // Default White
+          }
         }
-      } else {
-        badge.innerText = "Out of Office";
-        badge.style.color = "#f87171";
+      } catch (error) {
+        console.error("Failed to fetch status:", error);
       }
     }
-    setInterval(updateLocationBySchedule, 60000);
-    updateLocationBySchedule();
+    
+    // Check for updates every 15 seconds
+    setInterval(updateLocationStatus, 15000);
+    updateLocationStatus();
 
     // 3. FULLCALENDAR VIA GOOGLE APPS SCRIPT PROXY
     document.addEventListener('DOMContentLoaded', function() {
