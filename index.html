@@ -27,7 +27,6 @@
       padding: 16px;
     }
 
-    /* Landscape 2-Column Layout */
     .dashboard {
       display: grid;
       grid-template-columns: 280px 1fr;
@@ -97,9 +96,9 @@
       color: #38bdf8;
     }
 
-    /* FullCalendar Dark Mode Styling */
+    /* FullCalendar Dark Mode Styling & Flex Fix */
     #calendar {
-      height: 100%;
+      flex-grow: 1; /* Forces the calendar to fill the card height */
       overflow-y: auto;
     }
     
@@ -152,6 +151,7 @@
 
   <div class="dashboard">
 
+    <!-- Column 1: Status & Clock -->
     <div class="card status-card">
       <div>
         <div class="card-header">📍 Location & Status</div>
@@ -167,6 +167,7 @@
       </div>
     </div>
 
+    <!-- Column 2: Today's Outlook Agenda -->
     <div class="card">
       <div class="card-header">📅 Today's Schedule</div>
       <div id="calendar"></div>
@@ -209,23 +210,16 @@
     setInterval(updateLocationBySchedule, 60000);
     updateLocationBySchedule();
 
-    // 3. FULLCALENDAR + ALLORIGINS PROXY
+    // 3. FULLCALENDAR VIA GOOGLE APPS SCRIPT PROXY
     document.addEventListener('DOMContentLoaded', function() {
       const calendarEl = document.getElementById('calendar');
-      const rawIcsUrl = 'https://outlook.office365.com/owa/calendar/30191564131e4b8394c04f66fa6945b8@wzzm13.com/0f08c3d6e50d4990a24565e07886e96d12628884093217305022/calendar.ics';
       
-      // Function to get a fresh proxy URL (bypasses AllOrigins cache)
-      function getProxyUrl() {
-        const bypassCache = rawIcsUrl + '?refresh=' + new Date().getTime();
-        return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(bypassCache);
-      }
-
       const calendar = new FullCalendar.Calendar(calendarEl, {
-        plugins: [ FullCalendar.iCalendarPlugin ],
         initialView: 'listDay', // Strictly forces today's list view
         headerToolbar: false,
         noEventsContent: 'No events scheduled for today.',
         events: {
+          // INSERT YOUR GOOGLE SCRIPT WEB APP URL HERE:
           url: 'https://script.google.com/macros/s/AKfycbzKreOXo-BU4tJaEFTJwTHD6sjq8TuV_cPpCXIWyjjO3XcfBbiyBdshodN_qAwTiaw9dA/exec',
           format: 'ics'
         }
@@ -235,14 +229,8 @@
 
       // Refetch events every 10 minutes
       setInterval(() => {
-        const eventSource = calendar.getEventSources()[0];
-        if (eventSource) eventSource.remove();
-        
-        calendar.addEventSource({
-          url: getProxyUrl(),
-          format: 'ics'
-        });
-      }, 600000); // 10 minutes
+        calendar.refetchEvents();
+      }, 600000);
     });
   </script>
 
