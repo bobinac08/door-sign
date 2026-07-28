@@ -80,18 +80,17 @@
     .location-box {
       background-color: #0f172a;
       border-radius: 8px;
-      padding: 20px 16px;
+      padding: 20px 16px; 
       border-left: 6px solid #3b82f6; 
     }
-
-    /* Added style for the new availability box to separate it slightly */
+    
     .availability-box {
-      border-left: 6px solid #a855f7; /* Purple accent */
+      border-left: 6px solid #a855f7; 
       margin-top: 16px;
     }
 
     .location-title {
-      font-size: 1.1rem;
+      font-size: 1.1rem; 
       color: #94a3b8;
       margin-bottom: 8px;
       font-weight: 600;
@@ -99,12 +98,11 @@
     }
 
     .location-badge {
-      font-size: 2.8rem;
-      font-weight: 700;
+      font-size: 2.8rem; 
+      font-weight: 700; 
       line-height: 1.1; 
     }
 
-    /* FullCalendar Dark Mode Styling & Flex Fix */
     #calendar {
       flex-grow: 1; 
       overflow-y: auto;
@@ -160,18 +158,15 @@
 
   <div class="dashboard">
 
-    <!-- Column 1: Status, Availability & Clock -->
     <div class="card status-card">
       <div>
         <div class="card-header">📍 Location & Status</div>
         
-        <!-- Location Box -->
         <div class="location-box">
           <div class="location-title">CURRENTLY</div>
           <div id="location-badge" class="location-badge">Updating...</div>
         </div>
 
-        <!-- New Availability Box -->
         <div class="location-box availability-box">
           <div class="location-title">AVAILABILITY</div>
           <div id="availability-badge" class="location-badge">Loading...</div>
@@ -184,7 +179,6 @@
       </div>
     </div>
 
-    <!-- Column 2: Today's Outlook Agenda -->
     <div class="card">
       <div class="card-header">📅 Today's Schedule</div>
       <div id="calendar"></div>
@@ -211,10 +205,10 @@
       const hour = now.getHours();
       const badge = document.getElementById('location-badge');
 
-      // GATEKEEPER: Check if it's outside working hours (Mon-Fri, 8 AM - 4 PM)
       if (day === 0 || day === 6 || hour < 8 || hour >= 16) {
         badge.innerText = "Off the Clock";
-        badge.style.color = "#94a3b8"; // Slate Gray
+        badge.style.color = "#94a3b8"; 
+        document.dispatchEvent(new Event('locationUpdated')); // Sync availability immediately
         return; 
       }
 
@@ -228,24 +222,27 @@
           badge.innerText = currentStatus;
           
           if (currentStatus === "In Office") {
-            badge.style.color = "#4ade80"; // Bright Green
+            badge.style.color = "#4ade80"; 
           } else if (currentStatus === "Working From Home") {
-            badge.style.color = "#38bdf8"; // Light Blue
+            badge.style.color = "#38bdf8"; 
           } else if (currentStatus === "Stepped Out") {
-            badge.style.color = "#facc15"; // Yellow
+            badge.style.color = "#facc15"; 
           } else if (currentStatus === "On Lunch") {
-            badge.style.color = "#fb923c"; // Orange
+            badge.style.color = "#fb923c"; 
           } else if (currentStatus === "On Shoot") {
-            badge.style.color = "#f87171"; // Red
+            badge.style.color = "#f87171"; 
           } else if (currentStatus === "Meeting") {
-            badge.style.color = "#f87171"; // Red
+            badge.style.color = "#f87171"; 
           } else {
-            badge.style.color = "#ffffff"; // Default White
+            badge.style.color = "#ffffff"; 
           }
         }
       } catch (error) {
         console.error("Failed to fetch status:", error);
       }
+      
+      // Fire a custom event letting the rest of the script know the location just changed
+      document.dispatchEvent(new Event('locationUpdated'));
     }
     
     setInterval(updateLocationStatus, 15000);
@@ -256,7 +253,7 @@
       const calendarEl = document.getElementById('calendar');
       
       const calendar = new FullCalendar.Calendar(calendarEl, {
-        initialView: 'listDay',
+        initialView: 'listDay', 
         headerToolbar: false,
         noEventsContent: 'No events scheduled for today.',
         events: {
@@ -267,37 +264,46 @@
 
       calendar.render();
 
-      // AVAILABILITY LOGIC: Check current time against parsed calendar events
+      // AVAILABILITY LOGIC: Checks manual status first, then checks calendar
       function updateAvailability() {
-        const events = calendar.getEvents();
-        const now = new Date();
         let isBusy = false;
+        
+        // 1. First, check if there is a manual override active from the Location box
+        const currentStatus = document.getElementById('location-badge').innerText;
+        const busyOverrides = ["On Lunch", "Meeting", "On Shoot"];
+        
+        if (busyOverrides.includes(currentStatus)) {
+          isBusy = true;
+        } else {
+          // 2. If no manual override, fall back to checking the Outlook calendar events
+          const events = calendar.getEvents();
+          const now = new Date();
 
-        events.forEach(event => {
-          if (event.start && event.end) {
-            if (now >= event.start && now < event.end) {
-              isBusy = true;
+          events.forEach(event => {
+            if (event.start && event.end) {
+              if (now >= event.start && now < event.end) {
+                isBusy = true;
+              }
             }
-          }
-        });
+          });
+        }
 
+        // Apply the final result to the Availability badge
         const availBadge = document.getElementById('availability-badge');
         if (isBusy) {
           availBadge.innerText = "Busy";
           availBadge.style.color = "#f87171"; // Red
         } else {
           availBadge.innerText = "Available";
-          availBadge.style.color = "#4ade80"; // Bright Green
+          availBadge.style.color = "#4ade80"; // Green
         }
       }
 
-      // Check availability every 60 seconds
+      // Check availability automatically on schedule, AND instantly whenever location/calendar changes
       setInterval(updateAvailability, 60000);
-      
-      // Update immediately whenever FullCalendar finishes fetching/rendering events
       calendar.on('eventsSet', updateAvailability);
+      document.addEventListener('locationUpdated', updateAvailability);
 
-      // Refetch events from Google Script proxy every 10 minutes
       setInterval(() => {
         calendar.refetchEvents();
       }, 600000);
