@@ -191,7 +191,7 @@
         <div class="card-header">📍 Location & Status</div>
         
         <div class="location-box">
-          <div class="location-title">CURRENT STATUS</div>
+          <div class="location-title">CURRENTLY</div>
           <div id="location-badge" class="location-badge">Updating...</div>
           
           <!-- New Map Container -->
@@ -201,7 +201,8 @@
           </div>
         </div>
 
-        <div class="location-box availability-box">
+        <!-- Added ID to handle showing/hiding this entire block -->
+        <div id="availability-container" class="location-box availability-box">
           <div class="location-title">AVAILABILITY</div>
           <div id="availability-badge" class="location-badge">Loading...</div>
         </div>
@@ -287,13 +288,14 @@
             mapContainer.style.display = "block";
 
             if (!mapInstance) {
-              // Initialize Map if it doesn't exist
-              mapInstance = L.map('shoot-map').setView([lat, lon], 14);
+              // Initialize Map without zoom or attribution controls
+              mapInstance = L.map('shoot-map', {
+                zoomControl: false,
+                attributionControl: false
+              }).setView([lat, lon], 14);
               
               // Use CartoDB Dark Matter tiles for a sleek look
-              L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-                attribution: '&copy; OpenStreetMap &copy; CARTO'
-              }).addTo(mapInstance);
+              L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(mapInstance);
               
               mapMarker = L.marker([lat, lon]).addTo(mapInstance);
             } else {
@@ -338,6 +340,14 @@
         
         const currentStatus = document.getElementById('location-badge').innerText;
         const busyOverrides = ["On Lunch", "Meeting", "On Shoot"];
+        const availContainer = document.getElementById('availability-container');
+        
+        // Hide entire availability box if on a shoot to save space
+        if (currentStatus === "On Shoot") {
+          availContainer.style.display = "none";
+        } else {
+          availContainer.style.display = "block";
+        }
         
         if (busyOverrides.includes(currentStatus)) {
           isBusy = true;
