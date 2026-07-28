@@ -288,19 +288,19 @@
             mapContainer.style.display = "block";
 
             if (!mapInstance) {
-              // Initialize Map without zoom or attribution controls
+              // Initialize Map without zoom or attribution controls. Zoom set to 13.
               mapInstance = L.map('shoot-map', {
                 zoomControl: false,
                 attributionControl: false
-              }).setView([lat, lon], 14);
+              }).setView([lat, lon], 13);
               
-              // Use CartoDB Dark Matter tiles for a sleek look
-              L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(mapInstance);
+              // Standard, highly readable OpenStreetMap tiles
+              L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapInstance);
               
               mapMarker = L.marker([lat, lon]).addTo(mapInstance);
             } else {
-              // Just update the existing map
-              mapInstance.setView([lat, lon], 14);
+              // Just update the existing map. Zoom set to 13.
+              mapInstance.setView([lat, lon], 13);
               mapMarker.setLatLng([lat, lon]);
               mapInstance.invalidateSize(); // Fixes rendering bugs when unhiding divs
             }
