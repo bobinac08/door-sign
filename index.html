@@ -280,7 +280,8 @@
           const now = new Date();
 
           events.forEach(event => {
-            if (event.start && event.end) {
+            // ONLY check events that are NOT all-day events and have valid start/end times
+            if (!event.allDay && event.start && event.end) {
               if (now >= event.start && now < event.end) {
                 isBusy = true;
               }
