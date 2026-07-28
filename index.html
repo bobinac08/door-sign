@@ -5,10 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Office Door Sign</title>
 
-  <!-- FullCalendar & ICAL parsing scripts -->
+  <!-- FullCalendar, ICAL parsing, and Leaflet Maps scripts -->
   <script src="https://cdn.jsdelivr.net/npm/ical.js@1.5.0/build/ical.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/icalendar@6.1.10/index.global.min.js"></script>
+  
+  <!-- Leaflet CSS & JS for the Map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <style>
     * {
@@ -103,6 +107,30 @@
       line-height: 1.1; 
     }
 
+    /* Style for the Map Container */
+    #shoot-map-container {
+      display: none; /* Hidden by default */
+      margin-top: 16px;
+      border-top: 1px solid #334155;
+      padding-top: 16px;
+    }
+
+    #shoot-location-name {
+      font-size: 1.2rem;
+      color: #38bdf8;
+      font-weight: 600;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+
+    #shoot-map {
+      height: 180px; 
+      width: 100%;
+      border-radius: 8px;
+      border: 1px solid #334155;
+      z-index: 1; /* Keeps Leaflet inside its box */
+    }
+
     #calendar {
       flex-grow: 1; 
       overflow-y: auto;
@@ -163,8 +191,14 @@
         <div class="card-header">📍 Location & Status</div>
         
         <div class="location-box">
-          <div class="location-title">CURRENTLY</div>
+          <div class="location-title">CURRENT STATUS</div>
           <div id="location-badge" class="location-badge">Updating...</div>
+          
+          <!-- New Map Container -->
+          <div id="shoot-map-container">
+            <div id="shoot-location-name"></div>
+            <div id="shoot-map"></div>
+          </div>
         </div>
 
         <div class="location-box availability-box">
@@ -198,17 +232,23 @@
     setInterval(updateClock, 1000);
     updateClock();
 
+    // Leaflet Map Variables
+    let mapInstance = null;
+    let mapMarker = null;
+
     // 2. LOCATION BY WIFI & TIME (DWEET.CC)
     async function updateLocationStatus() {
       const now = new Date();
       const day = now.getDay();
       const hour = now.getHours();
       const badge = document.getElementById('location-badge');
+      const mapContainer = document.getElementById('shoot-map-container');
 
       if (day === 0 || day === 6 || hour < 8 || hour >= 16) {
         badge.innerText = "Off the Clock";
         badge.style.color = "#94a3b8"; 
-        document.dispatchEvent(new Event('locationUpdated')); // Sync availability immediately
+        mapContainer.style.display = "none";
+        document.dispatchEvent(new Event('locationUpdated')); 
         return; 
       }
 
@@ -236,12 +276,40 @@
           } else {
             badge.style.color = "#ffffff"; 
           }
+
+          // Map Generation Logic
+          if (currentStatus === "On Shoot" && data.with[0].content.lat && data.with[0].content.lon) {
+            const locName = data.with[0].content.name || "Shoot Location";
+            const lat = parseFloat(data.with[0].content.lat);
+            const lon = parseFloat(data.with[0].content.lon);
+
+            document.getElementById('shoot-location-name').innerText = `📍 ${locName}`;
+            mapContainer.style.display = "block";
+
+            if (!mapInstance) {
+              // Initialize Map if it doesn't exist
+              mapInstance = L.map('shoot-map').setView([lat, lon], 14);
+              
+              // Use CartoDB Dark Matter tiles for a sleek look
+              L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OpenStreetMap &copy; CARTO'
+              }).addTo(mapInstance);
+              
+              mapMarker = L.marker([lat, lon]).addTo(mapInstance);
+            } else {
+              // Just update the existing map
+              mapInstance.setView([lat, lon], 14);
+              mapMarker.setLatLng([lat, lon]);
+              mapInstance.invalidateSize(); // Fixes rendering bugs when unhiding divs
+            }
+          } else {
+            mapContainer.style.display = "none";
+          }
         }
       } catch (error) {
         console.error("Failed to fetch status:", error);
       }
       
-      // Fire a custom event letting the rest of the script know the location just changed
       document.dispatchEvent(new Event('locationUpdated'));
     }
     
@@ -264,23 +332,20 @@
 
       calendar.render();
 
-      // AVAILABILITY LOGIC: Checks manual status first, then checks calendar
+      // AVAILABILITY LOGIC
       function updateAvailability() {
         let isBusy = false;
         
-        // 1. First, check if there is a manual override active from the Location box
         const currentStatus = document.getElementById('location-badge').innerText;
         const busyOverrides = ["On Lunch", "Meeting", "On Shoot"];
         
         if (busyOverrides.includes(currentStatus)) {
           isBusy = true;
         } else {
-          // 2. If no manual override, fall back to checking the Outlook calendar events
           const events = calendar.getEvents();
           const now = new Date();
 
           events.forEach(event => {
-            // ONLY check events that are NOT all-day events and have valid start/end times
             if (!event.allDay && event.start && event.end) {
               if (now >= event.start && now < event.end) {
                 isBusy = true;
@@ -289,18 +354,16 @@
           });
         }
 
-        // Apply the final result to the Availability badge
         const availBadge = document.getElementById('availability-badge');
         if (isBusy) {
           availBadge.innerText = "Busy";
-          availBadge.style.color = "#f87171"; // Red
+          availBadge.style.color = "#f87171"; 
         } else {
           availBadge.innerText = "Available";
-          availBadge.style.color = "#4ade80"; // Green
+          availBadge.style.color = "#4ade80"; 
         }
       }
 
-      // Check availability automatically on schedule, AND instantly whenever location/calendar changes
       setInterval(updateAvailability, 60000);
       calendar.on('eventsSet', updateAvailability);
       document.addEventListener('locationUpdated', updateAvailability);
