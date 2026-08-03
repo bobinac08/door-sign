@@ -334,10 +334,22 @@
 
       calendar.render();
 
-      // AVAILABILITY LOGIC
-      function updateAvailability() {
+      // AVAILABILITY LOGIC (WITH MANUAL OVERRIDE)
+      async function updateAvailability() {
         let isBusy = false;
+        let overrideMode = "auto";
         
+        // Check for manual override from the new Dweet channel
+        try {
+          const overrideResponse = await fetch('https://dweet.cc/get/latest/dweet/for/bobinac-door-override-19860429');
+          const overrideData = await overrideResponse.json();
+          if (overrideData.this === "succeeded" && overrideData.with && overrideData.with.length > 0) {
+             overrideMode = overrideData.with[0].content.mode || "auto";
+          }
+        } catch (error) {
+          console.error("Failed to fetch override mode:", error);
+        }
+
         const currentStatus = document.getElementById('location-badge').innerText;
         const busyOverrides = ["On Lunch", "Meeting", "On Shoot"];
         const availContainer = document.getElementById('availability-container');
@@ -349,19 +361,27 @@
           availContainer.style.display = "block";
         }
         
-        if (busyOverrides.includes(currentStatus)) {
+        // Apply Override Logic OR Calendar Logic
+        if (overrideMode === "busy") {
           isBusy = true;
+        } else if (overrideMode === "available") {
+          isBusy = false;
         } else {
-          const events = calendar.getEvents();
-          const now = new Date();
+          // If set to "auto", fallback to the calendar and status overrides
+          if (busyOverrides.includes(currentStatus)) {
+            isBusy = true;
+          } else {
+            const events = calendar.getEvents();
+            const now = new Date();
 
-          events.forEach(event => {
-            if (!event.allDay && event.start && event.end) {
-              if (now >= event.start && now < event.end) {
-                isBusy = true;
+            events.forEach(event => {
+              if (!event.allDay && event.start && event.end) {
+                if (now >= event.start && now < event.end) {
+                  isBusy = true;
+                }
               }
-            }
-          });
+            });
+          }
         }
 
         const availBadge = document.getElementById('availability-badge');
