@@ -334,12 +334,12 @@
 
       calendar.render();
 
-      // AVAILABILITY LOGIC (WITH MANUAL OVERRIDE)
+      // AVAILABILITY LOGIC (WITH MANUAL OVERRIDE & OFF THE CLOCK HIDING)
       async function updateAvailability() {
         let isBusy = false;
         let overrideMode = "auto";
         
-        // Check for manual override from the new Dweet channel
+        // Check for manual override from Dweet channel
         try {
           const overrideResponse = await fetch('https://dweet.cc/get/latest/dweet/for/bobinac-door-override-19860429');
           const overrideData = await overrideResponse.json();
@@ -354,8 +354,8 @@
         const busyOverrides = ["On Lunch", "Meeting", "On Shoot"];
         const availContainer = document.getElementById('availability-container');
         
-        // Hide entire availability box if on a shoot to save space
-        if (currentStatus === "On Shoot") {
+        // Hide entire availability box if on a shoot OR off the clock to save space / prevent confusion
+        if (currentStatus === "On Shoot" || currentStatus === "Off the Clock") {
           availContainer.style.display = "none";
         } else {
           availContainer.style.display = "block";
