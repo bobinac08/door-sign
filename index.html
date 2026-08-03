@@ -57,6 +57,7 @@
       letter-spacing: 0.05em;
       display: flex;
       align-items: center;
+      justify-content: space-between;
       gap: 8px;
     }
 
@@ -105,6 +106,35 @@
       font-size: 2.8rem; 
       font-weight: 700; 
       line-height: 1.1; 
+    }
+
+    /* Schedule Toggle Tabs Styling */
+    .tab-container {
+      display: flex;
+      gap: 4px;
+      background-color: #0f172a;
+      padding: 3px;
+      border-radius: 8px;
+      border: 1px solid #334155;
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      padding: 6px 12px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .tab-btn.active {
+      background-color: #38bdf8;
+      color: #0f172a;
     }
 
     /* Style for the Map Container */
@@ -194,14 +224,14 @@
           <div class="location-title">CURRENTLY</div>
           <div id="location-badge" class="location-badge">Updating...</div>
           
-          <!-- New Map Container -->
+          <!-- Map Container -->
           <div id="shoot-map-container">
             <div id="shoot-location-name"></div>
             <div id="shoot-map"></div>
           </div>
         </div>
 
-        <!-- Added ID to handle showing/hiding this entire block -->
+        <!-- Availability Block -->
         <div id="availability-container" class="location-box availability-box">
           <div class="location-title">AVAILABILITY</div>
           <div id="availability-badge" class="location-badge">Loading...</div>
@@ -215,7 +245,13 @@
     </div>
 
     <div class="card">
-      <div class="card-header">📅 Today's Schedule</div>
+      <div class="card-header">
+        <span>📅 Schedule</span>
+        <div class="tab-container">
+          <button id="btn-today" class="tab-btn active">Today</button>
+          <button id="btn-tomorrow" class="tab-btn">Tomorrow</button>
+        </div>
+      </div>
       <div id="calendar"></div>
     </div>
 
@@ -321,11 +357,13 @@
     // 3. FULLCALENDAR VIA GOOGLE APPS SCRIPT PROXY
     document.addEventListener('DOMContentLoaded', function() {
       const calendarEl = document.getElementById('calendar');
+      const btnToday = document.getElementById('btn-today');
+      const btnTomorrow = document.getElementById('btn-tomorrow');
       
       const calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'listDay', 
         headerToolbar: false,
-        noEventsContent: 'No events scheduled for today.',
+        noEventsContent: 'No events scheduled.',
         events: {
           url: 'https://script.google.com/macros/s/AKfycbzKreOXo-BU4tJaEFTJwTHD6sjq8TuV_cPpCXIWyjjO3XcfBbiyBdshodN_qAwTiaw9dA/exec',
           format: 'ics'
@@ -333,6 +371,21 @@
       });
 
       calendar.render();
+
+      // SCHEDULE TAB TOGGLE LOGIC
+      btnToday.addEventListener('click', function() {
+        calendar.today(); // Reset to today
+        btnToday.classList.add('active');
+        btnTomorrow.classList.remove('active');
+      });
+
+      btnTomorrow.addEventListener('click', function() {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        calendar.gotoDate(tomorrow); // Jump to tomorrow
+        btnTomorrow.classList.add('active');
+        btnToday.classList.remove('active');
+      });
 
       // AVAILABILITY LOGIC (WITH MANUAL OVERRIDE & OFF THE CLOCK HIDING)
       async function updateAvailability() {
