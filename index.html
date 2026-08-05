@@ -258,13 +258,18 @@
   </div>
 
   <script>
-    // 1. DYNAMIC CLOCK
+// 1. DYNAMIC CLOCK
     function updateClock() {
       const now = new Date();
       const timeOptions = { hour: 'numeric', minute: '2-digit', hour12: true };
       document.getElementById('time').innerText = now.toLocaleTimeString([], timeOptions);
       const dateOptions = { weekday: 'short', month: 'short', day: 'numeric' };
       document.getElementById('date').innerText = now.toLocaleDateString([], dateOptions);
+
+      // NIGHTLY RELOAD: Refresh the entire page at exactly 2:00:00 AM
+      if (now.getHours() === 2 && now.getMinutes() === 0 && now.getSeconds() === 0) {
+        window.location.reload();
+      }
     }
     setInterval(updateClock, 1000);
     updateClock();
