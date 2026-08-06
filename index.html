@@ -210,6 +210,15 @@
       padding: 40px !important;
       text-align: center;
     }
+
+    /* Custom Active Highlight Class */
+    .fc-list-event.active-highlight td {
+      background-color: rgba(248, 113, 113, 0.15) !important;
+    }
+    .fc-list-event.active-highlight .fc-list-event-title,
+    .fc-list-event.active-highlight .fc-list-event-time {
+      color: #f87171 !important;
+    }
   </style>
 </head>
 <body>
@@ -258,7 +267,7 @@
   </div>
 
   <script>
-// 1. DYNAMIC CLOCK
+    // 1. DYNAMIC CLOCK
     function updateClock() {
       const now = new Date();
       const timeOptions = { hour: 'numeric', minute: '2-digit', hour12: true };
@@ -329,21 +338,17 @@
             mapContainer.style.display = "block";
 
             if (!mapInstance) {
-              // Initialize Map without zoom or attribution controls. Zoom set to 13.
               mapInstance = L.map('shoot-map', {
                 zoomControl: false,
                 attributionControl: false
               }).setView([lat, lon], 13);
               
-              // Standard, highly readable OpenStreetMap tiles
               L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapInstance);
-              
               mapMarker = L.marker([lat, lon]).addTo(mapInstance);
             } else {
-              // Just update the existing map. Zoom set to 13.
               mapInstance.setView([lat, lon], 13);
               mapMarker.setLatLng([lat, lon]);
-              mapInstance.invalidateSize(); // Fixes rendering bugs when unhiding divs
+              mapInstance.invalidateSize(); 
             }
           } else {
             mapContainer.style.display = "none";
@@ -379,7 +384,7 @@
 
       // SCHEDULE TAB TOGGLE LOGIC
       btnToday.addEventListener('click', function() {
-        calendar.today(); // Reset to today
+        calendar.today(); 
         btnToday.classList.add('active');
         btnTomorrow.classList.remove('active');
       });
@@ -387,22 +392,23 @@
       btnTomorrow.addEventListener('click', function() {
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
-        calendar.gotoDate(tomorrow); // Jump to tomorrow
+        calendar.gotoDate(tomorrow); 
         btnTomorrow.classList.add('active');
         btnToday.classList.remove('active');
       });
 
-      // AVAILABILITY LOGIC (WITH MANUAL OVERRIDE & OFF THE CLOCK HIDING)
+      // AVAILABILITY LOGIC (WITH SMART EVENT HIGHLIGHTING)
       async function updateAvailability() {
         let isBusy = false;
         let overrideMode = "auto";
+        let overrideTarget = "";
         
-        // Check for manual override from Dweet channel
         try {
           const overrideResponse = await fetch('https://dweet.cc/get/latest/dweet/for/bobinac-door-override-19860429');
           const overrideData = await overrideResponse.json();
           if (overrideData.this === "succeeded" && overrideData.with && overrideData.with.length > 0) {
              overrideMode = overrideData.with[0].content.mode || "auto";
+             overrideTarget = overrideData.with[0].content.target || "";
           }
         } catch (error) {
           console.error("Failed to fetch override mode:", error);
@@ -412,35 +418,55 @@
         const busyOverrides = ["On Lunch", "Meeting", "On Shoot"];
         const availContainer = document.getElementById('availability-container');
         
-        // Hide entire availability box if on a shoot OR off the clock to save space / prevent confusion
         if (currentStatus === "On Shoot" || currentStatus === "Off the Clock") {
           availContainer.style.display = "none";
         } else {
           availContainer.style.display = "block";
         }
         
-        // Apply Override Logic OR Calendar Logic
         if (overrideMode === "busy") {
           isBusy = true;
         } else if (overrideMode === "available") {
           isBusy = false;
         } else {
-          // If set to "auto", fallback to the calendar and status overrides
           if (busyOverrides.includes(currentStatus)) {
             isBusy = true;
-          } else {
-            const events = calendar.getEvents();
-            const now = new Date();
-
-            events.forEach(event => {
-              if (!event.allDay && event.start && event.end) {
-                if (now >= event.start && now < event.end) {
-                  isBusy = true;
-                }
-              }
-            });
           }
         }
+
+        const events = calendar.getEvents();
+        const now = new Date();
+
+        // Loop through all events to determine which one needs the highlight class
+        events.forEach(event => {
+          let shouldHighlight = false;
+          let isTimeActive = (!event.allDay && event.start && event.end && now >= event.start && now < event.end);
+          
+          // Auto Mode Evaluation
+          if (overrideMode === "auto" && isTimeActive) {
+            shouldHighlight = true;
+            if (!busyOverrides.includes(currentStatus)) {
+               isBusy = true; 
+            }
+          }
+          
+          // Manual Override SMART Evaluation
+          if (overrideMode === "busy" && overrideTarget !== "") {
+             let titleLower = event.title.toLowerCase();
+             // Split the target phrase into individual words (ignoring extra spaces)
+             let searchTerms = overrideTarget.toLowerCase().split(/\s+/).filter(word => word !== "");
+             
+             // Check if EVERY search term typed exists anywhere in the calendar title
+             let isMatch = searchTerms.length > 0 && searchTerms.every(term => titleLower.includes(term));
+             
+             if (isMatch) {
+                shouldHighlight = true;
+             }
+          }
+
+          // Apply styling dynamically
+          event.setProp('classNames', shouldHighlight ? ['active-highlight'] : []);
+        });
 
         const availBadge = document.getElementById('availability-badge');
         if (isBusy) {
