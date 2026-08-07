@@ -194,6 +194,7 @@
       color: #ffffff !important;
       font-size: 1.5rem !important; 
       padding: 16px !important;
+      transition: all 0.2s ease;
     }
 
     .fc-list-event-time {
@@ -201,6 +202,7 @@
       font-size: 1.3rem !important; 
       padding: 16px !important;
       font-weight: 600;
+      transition: all 0.2s ease;
     }
 
     .fc-list-empty {
@@ -211,13 +213,31 @@
       text-align: center;
     }
 
-    /* Custom Active Highlight Class */
+    /* Custom Active Highlight Class (UPDATED FOR BLUE/WHITE/LARGE) */
     .fc-list-event.active-highlight td {
-      background-color: rgba(248, 113, 113, 0.15) !important;
+      background-color: rgba(56, 189, 248, 0.15) !important;
+      border-top: 2px solid #38bdf8 !important;
+      border-bottom: 2px solid #38bdf8 !important;
     }
-    .fc-list-event.active-highlight .fc-list-event-title,
+    
+    .fc-list-event.active-highlight td:first-child {
+      border-left: 2px solid #38bdf8 !important;
+    }
+    
+    .fc-list-event.active-highlight td:last-child {
+      border-right: 2px solid #38bdf8 !important;
+    }
+
+    .fc-list-event.active-highlight .fc-list-event-title {
+      color: #ffffff !important;
+      font-size: 1.8rem !important; 
+      font-weight: 800 !important;
+    }
+
     .fc-list-event.active-highlight .fc-list-event-time {
-      color: #f87171 !important;
+      color: #ffffff !important;
+      font-size: 1.5rem !important; 
+      font-weight: 700 !important;
     }
   </style>
 </head>
@@ -230,7 +250,7 @@
         <div class="card-header">📍 Location & Status</div>
         
         <div class="location-box">
-          <div class="location-title">CURRENTLY </div>
+          <div class="location-title">CURRENTLY</div>
           <div id="location-badge" class="location-badge">Updating...</div>
           
           <!-- Map Container -->
@@ -453,10 +473,7 @@
           // Manual Override SMART Evaluation
           if (overrideMode === "busy" && overrideTarget !== "") {
              let titleLower = event.title.toLowerCase();
-             // Split the target phrase into individual words (ignoring extra spaces)
              let searchTerms = overrideTarget.toLowerCase().split(/\s+/).filter(word => word !== "");
-             
-             // Check if EVERY search term typed exists anywhere in the calendar title
              let isMatch = searchTerms.length > 0 && searchTerms.every(term => titleLower.includes(term));
              
              if (isMatch) {
