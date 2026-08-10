@@ -384,7 +384,7 @@
     setInterval(updateLocationStatus, 15000);
     updateLocationStatus();
 
-    // 3. FULLCALENDAR VIA GOOGLE APPS SCRIPT PROXY
+// 3. FULLCALENDAR VIA GOOGLE APPS SCRIPT PROXY
     document.addEventListener('DOMContentLoaded', function() {
       const calendarEl = document.getElementById('calendar');
       const btnToday = document.getElementById('btn-today');
@@ -394,6 +394,7 @@
         initialView: 'listDay', 
         headerToolbar: false,
         noEventsContent: 'No events scheduled.',
+        allDayText: '', // This removes the "all-day" text from the time column!
         events: {
           url: 'https://script.google.com/macros/s/AKfycbzKreOXo-BU4tJaEFTJwTHD6sjq8TuV_cPpCXIWyjjO3XcfBbiyBdshodN_qAwTiaw9dA/exec',
           format: 'ics'
