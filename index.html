@@ -485,7 +485,7 @@
         const events = calendar.getEvents();
         const now = new Date();
 
-        // Loop through all events to determine highlights, past events, and completed tasks
+       // Loop through all events to determine highlights, past events, and completed tasks
         events.forEach(event => {
           let shouldHighlight = false;
           let isTimeActive = (!event.allDay && event.start && event.end && now >= event.start && now < event.end);
@@ -495,12 +495,14 @@
           let currentTitle = event.title || "";
           let titleUpper = currentTitle.toUpperCase();
           
-          // If the title still has the symbol, clean it and securely save the status
+          // Only update the title if it contains the symbols, preventing endless loops
           if (titleUpper.includes('[X]') || titleUpper.includes('✅') || titleUpper.includes('DONE:')) {
             let cleanTitle = currentTitle.replace(/✅|\[X\]|DONE:/gi, '').trim();
-            event.setExtendedProp('isDoneTask', true); // Save the status invisibly
-            event.setProp('title', cleanTitle); // Clean the text properly
-            currentTitle = cleanTitle; // Update our local string for this loop
+            if (currentTitle !== cleanTitle) {
+              event.setExtendedProp('isDoneTask', true); // Save the status invisibly
+              event.setProp('title', cleanTitle); // Clean the text properly
+              currentTitle = cleanTitle; 
+            }
           }
 
           // Check our invisible flag rather than relying on the symbol
@@ -533,7 +535,13 @@
             classNames.push('past-event'); 
           }
 
-          event.setProp('classNames', classNames);
+          // LOOP BREAKER: Only update the calendar if the classes actually changed
+          let newClassString = classNames.join(' ');
+          let oldClassString = event.classNames.join(' ');
+          
+          if (newClassString !== oldClassString) {
+            event.setProp('classNames', classNames);
+          }
         });
 
         const availBadge = document.getElementById('availability-badge');
