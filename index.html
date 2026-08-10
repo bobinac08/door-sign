@@ -332,6 +332,14 @@
         badge.innerText = "Off the Clock";
         badge.style.color = "#94a3b8"; 
         mapContainer.style.display = "none";
+        
+        // DESTROY MAP TO FREE MEMORY
+        if (mapInstance) {
+          mapInstance.remove();
+          mapInstance = null;
+          mapMarker = null;
+        }
+
         document.dispatchEvent(new Event('locationUpdated')); 
         return; 
       }
@@ -361,7 +369,7 @@
             badge.style.color = "#ffffff"; 
           }
 
-          // Map Generation Logic
+          // Map Generation & Destruction Logic
           if (currentStatus === "On Shoot" && data.with[0].content.lat && data.with[0].content.lon) {
             const locName = data.with[0].content.name || "Shoot Location";
             const lat = parseFloat(data.with[0].content.lat);
@@ -385,6 +393,12 @@
             }
           } else {
             mapContainer.style.display = "none";
+            // DESTROY MAP TO FREE MEMORY WHEN NOT ON SHOOT
+            if (mapInstance) {
+              mapInstance.remove();
+              mapInstance = null;
+              mapMarker = null;
+            }
           }
         }
       } catch (error) {
@@ -411,6 +425,13 @@
         events: {
           url: 'https://script.google.com/macros/s/AKfycbzKreOXo-BU4tJaEFTJwTHD6sjq8TuV_cPpCXIWyjjO3XcfBbiyBdshodN_qAwTiaw9dA/exec',
           format: 'ics'
+        },
+        // NEW: Erase the task markers from the screen before displaying them
+        eventDidMount: function(info) {
+          let titleEl = info.el.querySelector('.fc-list-event-title');
+          if (titleEl) {
+            titleEl.innerHTML = titleEl.innerHTML.replace(/✅|\[X\]|DONE:/gi, '').trim();
+          }
         }
       });
 
