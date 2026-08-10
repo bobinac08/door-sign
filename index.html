@@ -421,17 +421,15 @@
         initialView: 'listDay', 
         headerToolbar: false,
         noEventsContent: 'No events scheduled.',
-        allDayText: '', // This removes the "all-day" text from the time column
+        allDayText: '', 
         events: {
           url: 'https://script.google.com/macros/s/AKfycbzKreOXo-BU4tJaEFTJwTHD6sjq8TuV_cPpCXIWyjjO3XcfBbiyBdshodN_qAwTiaw9dA/exec',
           format: 'ics'
         },
-        // NEW: Erase the task markers from the screen before displaying them
-        eventDidMount: function(info) {
-          let titleEl = info.el.querySelector('.fc-list-event-title');
-          if (titleEl) {
-            titleEl.innerHTML = titleEl.innerHTML.replace(/✅|\[X\]|DONE:/gi, '').trim();
-          }
+        // NEW: Clean the title before rendering to prevent duplication bugs
+        eventContent: function(arg) {
+          let cleanTitle = (arg.event.title || '').replace(/✅|\[X\]|DONE:/gi, '').trim();
+          return { text: cleanTitle };
         }
       });
 
