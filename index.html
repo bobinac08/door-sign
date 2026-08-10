@@ -139,7 +139,7 @@
 
     /* Style for the Map Container */
     #shoot-map-container {
-      display: none; /* Hidden by default */
+      display: none; 
       margin-top: 16px;
       border-top: 1px solid #334155;
       padding-top: 16px;
@@ -158,7 +158,7 @@
       width: 100%;
       border-radius: 8px;
       border: 1px solid #334155;
-      z-index: 1; /* Keeps Leaflet inside its box */
+      z-index: 1; 
     }
 
     #calendar {
@@ -213,7 +213,7 @@
       text-align: center;
     }
 
-    /* Custom Active Highlight Class (UPDATED FOR BLUE/WHITE/LARGE) */
+    /* Custom Active Highlight Class (BLUE/WHITE/LARGE) */
     .fc-list-event.active-highlight td {
       background-color: rgba(56, 189, 248, 0.15) !important;
       border-top: 2px solid #38bdf8 !important;
@@ -238,6 +238,19 @@
       color: #ffffff !important;
       font-size: 1.5rem !important; 
       font-weight: 700 !important;
+    }
+
+    /* Hide the redundant calendar color dot */
+    .fc-list-event-graphic {
+      display: none !important;
+    }
+
+    /* Custom Past / Completed Event Class */
+    .fc-list-event.past-event .fc-list-event-title,
+    .fc-list-event.past-event .fc-list-event-time {
+      opacity: 0.3 !important;
+      text-decoration: line-through !important;
+      transition: all 0.3s ease;
     }
   </style>
 </head>
@@ -384,7 +397,7 @@
     setInterval(updateLocationStatus, 15000);
     updateLocationStatus();
 
-// 3. FULLCALENDAR VIA GOOGLE APPS SCRIPT PROXY
+    // 3. FULLCALENDAR VIA GOOGLE APPS SCRIPT PROXY
     document.addEventListener('DOMContentLoaded', function() {
       const calendarEl = document.getElementById('calendar');
       const btnToday = document.getElementById('btn-today');
@@ -394,7 +407,7 @@
         initialView: 'listDay', 
         headerToolbar: false,
         noEventsContent: 'No events scheduled.',
-        allDayText: '', // This removes the "all-day" text from the time column!
+        allDayText: '', // This removes the "all-day" text from the time column
         events: {
           url: 'https://script.google.com/macros/s/AKfycbzKreOXo-BU4tJaEFTJwTHD6sjq8TuV_cPpCXIWyjjO3XcfBbiyBdshodN_qAwTiaw9dA/exec',
           format: 'ics'
@@ -418,7 +431,7 @@
         btnToday.classList.remove('active');
       });
 
-      // AVAILABILITY LOGIC (WITH SMART EVENT HIGHLIGHTING)
+      // AVAILABILITY LOGIC (WITH SMART EVENT HIGHLIGHTING & TASK COMPLETION)
       async function updateAvailability() {
         let isBusy = false;
         let overrideMode = "auto";
@@ -458,11 +471,16 @@
         const events = calendar.getEvents();
         const now = new Date();
 
-        // Loop through all events to determine which one needs the highlight class
+        // Loop through all events to determine highlights, past events, and completed tasks
         events.forEach(event => {
           let shouldHighlight = false;
           let isTimeActive = (!event.allDay && event.start && event.end && now >= event.start && now < event.end);
+          let isPast = (!event.allDay && event.end && now >= event.end); 
           
+          // TASK LOGIC: Check if title includes ✅ or [x] or DONE:
+          let titleUpper = event.title.toUpperCase();
+          let isDoneTask = (event.allDay && (titleUpper.includes('[X]') || titleUpper.includes('✅') || titleUpper.includes('DONE:')));
+
           // Auto Mode Evaluation
           if (overrideMode === "auto" && isTimeActive) {
             shouldHighlight = true;
@@ -483,7 +501,14 @@
           }
 
           // Apply styling dynamically
-          event.setProp('classNames', shouldHighlight ? ['active-highlight'] : []);
+          let classNames = [];
+          if (shouldHighlight && !isDoneTask) {
+            classNames.push('active-highlight');
+          } else if (isPast || isDoneTask) {
+            classNames.push('past-event'); 
+          }
+
+          event.setProp('classNames', classNames);
         });
 
         const availBadge = document.getElementById('availability-badge');
