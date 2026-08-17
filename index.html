@@ -328,22 +328,21 @@
       const badge = document.getElementById('location-badge');
       const mapContainer = document.getElementById('shoot-map-container');
 
-      if (day === 0 || day === 6 || hour < 8 || hour >= 16) {
+      // Only force Off the Clock automatically on weekends. 
+      // Weekdays are now 100% controlled by your iPhone geofencing and Dweet.
+      if (day === 0 || day === 6) {
         badge.innerText = "Off the Clock";
         badge.style.color = "#94a3b8"; 
         mapContainer.style.display = "none";
         
-        // DESTROY MAP TO FREE MEMORY
         if (mapInstance) {
           mapInstance.remove();
           mapInstance = null;
           mapMarker = null;
         }
-
         document.dispatchEvent(new Event('locationUpdated')); 
         return; 
       }
-
       try {
         const response = await fetch('https://dweet.cc/get/latest/dweet/for/bobinac-door-sign-19860429');
         const data = await response.json();
