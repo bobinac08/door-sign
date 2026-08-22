@@ -213,7 +213,7 @@
       text-align: center;
     }
 
-    /* Custom Active Highlight Class (BLUE/WHITE/LARGE) */
+    /* Custom Active Highlight Class */
     .fc-list-event.active-highlight td {
       background-color: rgba(56, 189, 248, 0.15) !important;
       border-top: 2px solid #38bdf8 !important;
@@ -252,6 +252,11 @@
       text-decoration: line-through !important;
       transition: all 0.3s ease;
     }
+
+    /* Completely hide specific status events like WFH */
+    .fc-list-event.hidden-event {
+      display: none !important;
+    }
   </style>
 </head>
 <body>
@@ -273,10 +278,16 @@
           </div>
         </div>
 
-        <!-- Availability Block -->
+        <!-- Availability Block (Hidden when Off the Clock) -->
         <div id="availability-container" class="location-box availability-box">
           <div class="location-title">AVAILABILITY</div>
           <div id="availability-badge" class="location-badge">Loading...</div>
+        </div>
+
+        <!-- Tomorrow Block (Only shows when Off the Clock) -->
+        <div id="tomorrow-container" class="location-box availability-box" style="display: none;">
+          <div class="location-title">TOMORROW</div>
+          <div id="tomorrow-badge" class="location-badge" style="font-size: 2.2rem;">Loading...</div>
         </div>
       </div>
 
@@ -324,12 +335,11 @@
     async function updateLocationStatus() {
       const now = new Date();
       const day = now.getDay();
-      const hour = now.getHours();
+      
       const badge = document.getElementById('location-badge');
       const mapContainer = document.getElementById('shoot-map-container');
 
       // Only force Off the Clock automatically on weekends. 
-      // Weekdays are now 100% controlled by your iPhone geofencing and Dweet.
       if (day === 0 || day === 6) {
         badge.innerText = "Off the Clock";
         badge.style.color = "#94a3b8"; 
@@ -392,7 +402,6 @@
             }
           } else {
             mapContainer.style.display = "none";
-            // DESTROY MAP TO FREE MEMORY WHEN NOT ON SHOOT
             if (mapInstance) {
               mapInstance.remove();
               mapInstance = null;
@@ -444,7 +453,7 @@
         btnToday.classList.remove('active');
       });
 
-      // AVAILABILITY LOGIC (WITH SMART EVENT HIGHLIGHTING & TASK COMPLETION)
+      // AVAILABILITY & TOMORROW LOGIC
       async function updateAvailability() {
         let isBusy = false;
         let overrideMode = "auto";
@@ -462,54 +471,53 @@
         }
 
         const rawStatus = document.getElementById('location-badge').innerText;
-        const currentStatus = rawStatus.trim(); // Removes any accidental spaces from Shortcuts
-        const statusLower = currentStatus.toLowerCase(); // Forces lowercase to prevent capitalization bugs
+        const currentStatus = rawStatus.trim(); 
+        const statusLower = currentStatus.toLowerCase(); 
         
         const busyOverrides = ["On Lunch", "Meeting", "On Shoot"];
         const availContainer = document.getElementById('availability-container');
-        
-        // Check using the lowercase, trimmed status
-        if (statusLower === "on shoot" || statusLower === "off the clock") {
-          availContainer.style.display = "none";
-        } else {
-          availContainer.style.display = "block";
-        }
-        
-        if (overrideMode === "busy") {
-          isBusy = true;
-        } else if (overrideMode === "available") {
-          isBusy = false;
-        } else {
-          if (busyOverrides.includes(currentStatus)) {
-            isBusy = true;
-          }
-        }
+        const tomorrowContainer = document.getElementById('tomorrow-container');
+        const tomorrowBadge = document.getElementById('tomorrow-badge');
 
         const events = calendar.getEvents();
         const now = new Date();
+        
+        // Calculate the exact date for tomorrow
+        let targetTomorrow = new Date();
+        targetTomorrow.setDate(targetTomorrow.getDate() + 1);
+        let isWfhTomorrow = false;
 
-       // Loop through all events to determine highlights, past events, and completed tasks
+       // Loop through events for highlights, past tasks, and tomorrow's status
         events.forEach(event => {
           let shouldHighlight = false;
           let isTimeActive = (!event.allDay && event.start && event.end && now >= event.start && now < event.end);
           let isPast = (!event.allDay && event.end && now >= event.end); 
           
-          // TASK LOGIC: Check and clean title safely
           let currentTitle = event.title || "";
           let titleUpper = currentTitle.toUpperCase();
           
-          // Only update the title if it contains the symbols, preventing endless loops
+          // TASK LOGIC
           if (titleUpper.includes('[X]') || titleUpper.includes('✅') || titleUpper.includes('DONE:')) {
             let cleanTitle = currentTitle.replace(/✅|\[X\]|DONE:/gi, '').trim();
             if (currentTitle !== cleanTitle) {
-              event.setExtendedProp('isDoneTask', true); // Save the status invisibly
-              event.setProp('title', cleanTitle); // Clean the text properly
+              event.setExtendedProp('isDoneTask', true); 
+              event.setProp('title', cleanTitle); 
               currentTitle = cleanTitle; 
             }
           }
-
-          // Check our invisible flag rather than relying on the symbol
           let isDoneTask = (event.allDay && event.extendedProps.isDoneTask === true);
+
+          // WFH CALENDAR CHECKER
+          let isWfhEvent = (titleUpper === 'WFH' || titleUpper === 'WORKING FROM HOME');
+          
+          // Does this WFH event land on tomorrow?
+          if (isWfhEvent && event.allDay && event.start) {
+            if (event.start.getFullYear() === targetTomorrow.getFullYear() && 
+                event.start.getMonth() === targetTomorrow.getMonth() && 
+                event.start.getDate() === targetTomorrow.getDate()) {
+              isWfhTomorrow = true;
+            }
+          }
 
           // Auto Mode Evaluation
           if (overrideMode === "auto" && isTimeActive) {
@@ -532,13 +540,17 @@
 
           // Apply styling dynamically
           let classNames = [];
-          if (shouldHighlight && !isDoneTask) {
-            classNames.push('active-highlight');
-          } else if (isPast || isDoneTask) {
-            classNames.push('past-event'); 
+          if (isWfhEvent) {
+             classNames.push('hidden-event'); // Erases WFH from the visible schedule
+          } else {
+             if (shouldHighlight && !isDoneTask) {
+               classNames.push('active-highlight');
+             } else if (isPast || isDoneTask) {
+               classNames.push('past-event'); 
+             }
           }
 
-          // LOOP BREAKER: Only update the calendar if the classes actually changed
+          // LOOP BREAKER
           let newClassString = classNames.join(' ');
           let oldClassString = event.classNames.join(' ');
           
@@ -546,6 +558,43 @@
             event.setProp('classNames', classNames);
           }
         });
+
+        // Set Availability vs Tomorrow View State
+        if (statusLower === "off the clock") {
+          availContainer.style.display = "none";
+          tomorrowContainer.style.display = "block";
+          
+          let tomorrowDay = targetTomorrow.getDay();
+          if (tomorrowDay === 0 || tomorrowDay === 6) {
+              tomorrowBadge.innerText = "Weekend";
+              tomorrowBadge.style.color = "#94a3b8";
+          } else {
+              if (isWfhTomorrow) {
+                  tomorrowBadge.innerText = "Working From Home";
+                  tomorrowBadge.style.color = "#38bdf8"; 
+              } else {
+                  tomorrowBadge.innerText = "In Office";
+                  tomorrowBadge.style.color = "#4ade80"; 
+              }
+          }
+        } else if (statusLower === "on shoot") {
+          availContainer.style.display = "none";
+          tomorrowContainer.style.display = "none";
+        } else {
+          availContainer.style.display = "block";
+          tomorrowContainer.style.display = "none";
+        }
+
+        // Set Busy Status
+        if (overrideMode === "busy") {
+          isBusy = true;
+        } else if (overrideMode === "available") {
+          isBusy = false;
+        } else {
+          if (busyOverrides.includes(currentStatus)) {
+            isBusy = true;
+          }
+        }
 
         const availBadge = document.getElementById('availability-badge');
         if (isBusy) {
