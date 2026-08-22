@@ -357,14 +357,15 @@
       btn.disabled = true;
 
       try {
-        await fetch('https://ntfy.sh/bobinac-door-page-19860429', {
+        await fetch('https://ntfy.sh', {
           method: 'POST',
-          body: 'Someone is looking for you at your office door!',
-          headers: {
-            'Title': '🚪 Office Door Alert',
-            'Priority': 'urgent',
-            'Tags': 'rotating_light,bell'
-          }
+          body: JSON.stringify({
+            topic: 'bobinac-door-page-19860429',
+            message: 'Someone is looking for you at your office door!',
+            title: '🚪 Office Door Alert',
+            priority: 5,
+            tags: ['rotating_light', 'bell']
+          })
         });
         
         btn.innerText = "Alert Sent ✓";
@@ -382,9 +383,19 @@
       } catch (error) {
         console.error("Failed to send page:", error);
         btn.innerText = "Error - Try Again";
-        btn.disabled = false;
+        btn.style.backgroundColor = "#f87171";
+        btn.style.color = "#ffffff";
+        
+        // Reset the button after a failed attempt so they can try again quickly
+        setTimeout(() => {
+          btn.innerText = "🔔 Page Me";
+          btn.style.backgroundColor = ""; 
+          btn.style.color = "";
+          btn.disabled = false;
+        }, 4000);
       }
     }
+
 
     // 1. DYNAMIC CLOCK
     function updateClock() {
