@@ -461,11 +461,15 @@
           console.error("Failed to fetch override mode:", error);
         }
 
-        const currentStatus = document.getElementById('location-badge').innerText;
+        const rawStatus = document.getElementById('location-badge').innerText;
+        const currentStatus = rawStatus.trim(); // Removes any accidental spaces from Shortcuts
+        const statusLower = currentStatus.toLowerCase(); // Forces lowercase to prevent capitalization bugs
+        
         const busyOverrides = ["On Lunch", "Meeting", "On Shoot"];
         const availContainer = document.getElementById('availability-container');
         
-        if (currentStatus === "On Shoot" || currentStatus === "Off the Clock") {
+        // Check using the lowercase, trimmed status
+        if (statusLower === "on shoot" || statusLower === "off the clock") {
           availContainer.style.display = "none";
         } else {
           availContainer.style.display = "block";
