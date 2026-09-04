@@ -580,7 +580,9 @@
         const rawStatus = document.getElementById('location-badge').innerText;
         const currentStatus = rawStatus.trim(); 
         const statusLower = currentStatus.toLowerCase(); 
+        
         const busyOverrides = ["On Lunch", "Meeting", "On Shoot"];
+        const hideAvailStatuses = ["stepped out", "on lunch", "meeting", "on shoot"]; // Statuses where availability box is redundant
         
         const availContainer = document.getElementById('availability-container');
         const targetDayContainer = document.getElementById('target-day-container');
@@ -702,7 +704,7 @@
         // Lock in the baseline state based on today's calendar findings
         todayBaseStatus = foundWfhToday ? "Working From Home" : "In Office";
 
-        // Interface Display Logic
+        // Interface Display Logic - Hiding Availability box during "away" states
         if (statusLower === "off the clock") {
           availContainer.style.display = "none";
           targetDayTitle.innerText = targetTitleText;
@@ -721,10 +723,12 @@
                   targetDayBadge.style.color = "#4ade80"; 
               }
           }
-        } else if (statusLower === "on shoot") {
+        } else if (hideAvailStatuses.includes(statusLower)) {
+          // Hide Availability for Meeting, Lunch, Stepped Out, On Shoot
           availContainer.style.display = "none";
           targetDayContainer.style.display = "none";
         } else {
+          // Normal Display (In Office / WFH)
           availContainer.style.display = "block";
           targetDayContainer.style.display = "none";
         }
