@@ -592,17 +592,20 @@
           let isOooEvent = (titleUpper === 'OOO');
           
           if ((isWfhEvent || isOooEvent) && event.allDay && event.start) {
-            // Check against Future Date (Tomorrow/Monday)
-            if (event.start.getFullYear() === futureDate.getFullYear() && 
-                event.start.getMonth() === futureDate.getMonth() && 
-                event.start.getDate() === futureDate.getDate()) {
+            // Convert start and end dates to clean timestamps (FullCalendar 'end' is the day after the event finishes)
+            let eStart = new Date(event.start.getFullYear(), event.start.getMonth(), event.start.getDate()).getTime();
+            let eEnd = event.end ? new Date(event.end.getFullYear(), event.end.getMonth(), event.end.getDate()).getTime() : eStart + 86400000;
+            
+            let targetTime = new Date(futureDate.getFullYear(), futureDate.getMonth(), futureDate.getDate()).getTime();
+            let todayTime = new Date(todayObj.getFullYear(), todayObj.getMonth(), todayObj.getDate()).getTime();
+
+            // Range Check for Future Date
+            if (targetTime >= eStart && targetTime < eEnd) {
               if (isWfhEvent) isWfhFuture = true;
               if (isOooEvent) isOooFuture = true;
             }
-            // Check against Today's Date
-            if (event.start.getFullYear() === todayObj.getFullYear() && 
-                event.start.getMonth() === todayObj.getMonth() && 
-                event.start.getDate() === todayObj.getDate()) {
+            // Range Check for Today's Date
+            if (todayTime >= eStart && todayTime < eEnd) {
               if (isWfhEvent) foundWfhToday = true;
               if (isOooEvent) foundOooToday = true;
             }
