@@ -111,7 +111,7 @@
     /* Paging Button Styling */
     #page-container {
       margin-top: 16px;
-      display: none; /* Hidden by default */
+      display: none; 
     }
 
     .page-btn {
@@ -274,12 +274,10 @@
       font-weight: 700 !important;
     }
 
-    /* Hide the redundant calendar color dot */
     .fc-list-event-graphic {
       display: none !important;
     }
 
-    /* Custom Past / Completed Event Class */
     .fc-list-event.past-event .fc-list-event-title,
     .fc-list-event.past-event .fc-list-event-time {
       opacity: 0.3 !important;
@@ -287,7 +285,6 @@
       transition: all 0.3s ease;
     }
 
-    /* Completely hide specific status events like WFH */
     .fc-list-event.hidden-event {
       display: none !important;
     }
@@ -305,28 +302,25 @@
           <div class="location-title">CURRENTLY</div>
           <div id="location-badge" class="location-badge">Updating...</div>
           
-          <!-- Map Container -->
           <div id="shoot-map-container">
             <div id="shoot-location-name"></div>
             <div id="shoot-map"></div>
           </div>
         </div>
 
-        <!-- Paging Button Container -->
         <div id="page-container">
           <button id="page-button" class="page-btn" onclick="sendPageAlert()">🔔 Page Me</button>
         </div>
 
-        <!-- Availability Block (Hidden when Off the Clock) -->
         <div id="availability-container" class="location-box availability-box">
           <div class="location-title">AVAILABILITY</div>
           <div id="availability-badge" class="location-badge">Loading...</div>
         </div>
 
-        <!-- Tomorrow Block (Only shows when Off the Clock) -->
-        <div id="tomorrow-container" class="location-box availability-box" style="display: none;">
-          <div class="location-title">TOMORROW</div>
-          <div id="tomorrow-badge" class="location-badge" style="font-size: 2.2rem;">Loading...</div>
+        <!-- Dynamic Target Day Block -->
+        <div id="target-day-container" class="location-box availability-box" style="display: none;">
+          <div class="location-title" id="target-day-title">TOMORROW</div>
+          <div id="target-day-badge" class="location-badge" style="font-size: 2.2rem;">Loading...</div>
         </div>
       </div>
 
@@ -372,7 +366,6 @@
         btn.style.backgroundColor = "#4ade80"; 
         btn.style.color = "#0f172a";
 
-        // 60-second cooldown before they can press it again
         setTimeout(() => {
           btn.innerText = "🔔 Page Me";
           btn.style.backgroundColor = ""; 
@@ -386,7 +379,6 @@
         btn.style.backgroundColor = "#f87171";
         btn.style.color = "#ffffff";
         
-        // Reset the button after a failed attempt so they can try again quickly
         setTimeout(() => {
           btn.innerText = "🔔 Page Me";
           btn.style.backgroundColor = ""; 
@@ -396,7 +388,6 @@
       }
     }
 
-
     // 1. DYNAMIC CLOCK
     function updateClock() {
       const now = new Date();
@@ -405,7 +396,6 @@
       const dateOptions = { weekday: 'short', month: 'short', day: 'numeric' };
       document.getElementById('date').innerText = now.toLocaleDateString([], dateOptions);
 
-      // NIGHTLY RELOAD: Refresh the entire page at exactly 2:00:00 AM
       if (now.getHours() === 2 && now.getMinutes() === 0 && now.getSeconds() === 0) {
         window.location.reload();
       }
@@ -413,7 +403,6 @@
     setInterval(updateClock, 1000);
     updateClock();
 
-    // Leaflet Map Variables
     let mapInstance = null;
     let mapMarker = null;
 
@@ -426,8 +415,7 @@
       const mapContainer = document.getElementById('shoot-map-container');
       const pageContainer = document.getElementById('page-container');
 
-      // Only force Off the Clock automatically on weekends. 
-      if (day === 0 || day === 8) {
+      if (day === 0 || day === 6) {
         badge.innerText = "Off the Clock";
         badge.style.color = "#94a3b8"; 
         mapContainer.style.display = "none";
@@ -447,10 +435,8 @@
         
         if (data.this === "succeeded" && data.with && data.with.length > 0) {
           const currentStatus = data.with[0].content.status;
-          
           badge.innerText = currentStatus;
           
-          // Show Page button ONLY if Stepped Out
           if (currentStatus === "Stepped Out") {
             pageContainer.style.display = "block";
           } else {
@@ -473,7 +459,6 @@
             badge.style.color = "#ffffff"; 
           }
 
-          // Map Generation & Destruction Logic
           if (currentStatus === "On Shoot" && data.with[0].content.lat && data.with[0].content.lon) {
             const locName = data.with[0].content.name || "Shoot Location";
             const lat = parseFloat(data.with[0].content.lat);
@@ -520,6 +505,30 @@
       const btnToday = document.getElementById('btn-today');
       const btnTomorrow = document.getElementById('btn-tomorrow');
       
+      let lastInteractionTime = 0;
+      let isInitialLoad = true;
+
+      // Smart Tab Switching Function
+      function switchToTab(tabName) {
+        if (tabName === 'today') {
+          calendar.today(); 
+          btnToday.classList.add('active');
+          btnTomorrow.classList.remove('active');
+        } else {
+          let d = new Date();
+          let currentDay = d.getDay();
+          let offset = 1;
+          if (currentDay === 5) offset = 3; // Friday -> Monday
+          else if (currentDay === 6) offset = 2; // Saturday -> Monday
+          else if (currentDay === 0) offset = 1; // Sunday -> Monday
+          
+          d.setDate(d.getDate() + offset);
+          calendar.gotoDate(d); 
+          btnTomorrow.classList.add('active');
+          btnToday.classList.remove('active');
+        }
+      }
+      
       const calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'listDay', 
         headerToolbar: false,
@@ -530,25 +539,19 @@
           format: 'ics'
         }
       });
-
       calendar.render();
 
-      // SCHEDULE TAB TOGGLE LOGIC
       btnToday.addEventListener('click', function() {
-        calendar.today(); 
-        btnToday.classList.add('active');
-        btnTomorrow.classList.remove('active');
+        lastInteractionTime = Date.now();
+        switchToTab('today');
       });
 
       btnTomorrow.addEventListener('click', function() {
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        calendar.gotoDate(tomorrow); 
-        btnTomorrow.classList.add('active');
-        btnToday.classList.remove('active');
+        lastInteractionTime = Date.now();
+        switchToTab('tomorrow');
       });
 
-      // AVAILABILITY & TOMORROW LOGIC
+      // AVAILABILITY & SMART TARGET LOGIC
       async function updateAvailability() {
         let isBusy = false;
         let overrideMode = "auto";
@@ -568,21 +571,55 @@
         const rawStatus = document.getElementById('location-badge').innerText;
         const currentStatus = rawStatus.trim(); 
         const statusLower = currentStatus.toLowerCase(); 
-        
         const busyOverrides = ["On Lunch", "Meeting", "On Shoot"];
+        
         const availContainer = document.getElementById('availability-container');
-        const tomorrowContainer = document.getElementById('tomorrow-container');
-        const tomorrowBadge = document.getElementById('tomorrow-badge');
+        const targetDayContainer = document.getElementById('target-day-container');
+        const targetDayBadge = document.getElementById('target-day-badge');
+        const targetDayTitle = document.getElementById('target-day-title');
 
         const events = calendar.getEvents();
         const now = new Date();
-        
-        // Calculate the exact date for tomorrow
-        let targetTomorrow = new Date();
-        targetTomorrow.setDate(targetTomorrow.getDate() + 1);
-        let isWfhTomorrow = false;
+        const currentDay = now.getDay();
+        const isEvening = now.getHours() >= 12; // Split morning/evening logic at Noon
 
-       // Loop through events for highlights, past tasks, and tomorrow's status
+        let targetDate = new Date();
+        let targetTitleText = "TOMORROW";
+        let defaultTab = 'today';
+
+        // Calculate Target Date Context
+        if (currentDay === 0 || currentDay === 6 || (statusLower === "off the clock" && isEvening)) {
+            // Forward-Looking View (Evening or Weekend)
+            if (currentDay === 5) {
+                targetDate.setDate(targetDate.getDate() + 3);
+                targetTitleText = "MONDAY";
+            } else if (currentDay === 6) {
+                targetDate.setDate(targetDate.getDate() + 2);
+                targetTitleText = "MONDAY";
+            } else if (currentDay === 0) {
+                targetDate.setDate(targetDate.getDate() + 1);
+                targetTitleText = "MONDAY";
+            } else {
+                targetDate.setDate(targetDate.getDate() + 1);
+                targetTitleText = "TOMORROW";
+            }
+            defaultTab = 'tomorrow';
+        } else {
+            // Morning View (Before start of day) OR normal working hours
+            targetDate = new Date(); // Evaluate Today
+            targetTitleText = "TODAY";
+            defaultTab = 'today';
+        }
+
+        // Rename the Tomorrow button dynamically for weekends
+        if (currentDay === 5 || currentDay === 6 || currentDay === 0) {
+           btnTomorrow.innerText = "Monday";
+        } else {
+           btnTomorrow.innerText = "Tomorrow";
+        }
+
+        let isWfhTarget = false;
+
         events.forEach(event => {
           let shouldHighlight = false;
           let isTimeActive = (!event.allDay && event.start && event.end && now >= event.start && now < event.end);
@@ -591,7 +628,6 @@
           let currentTitle = event.title || "";
           let titleUpper = currentTitle.toUpperCase();
           
-          // TASK LOGIC
           if (titleUpper.includes('[X]') || titleUpper.includes('✅') || titleUpper.includes('DONE:')) {
             let cleanTitle = currentTitle.replace(/✅|\[X\]|DONE:/gi, '').trim();
             if (currentTitle !== cleanTitle) {
@@ -602,19 +638,17 @@
           }
           let isDoneTask = (event.allDay && event.extendedProps.isDoneTask === true);
 
-          // WFH CALENDAR CHECKER
+          // WFH CALENDAR CHECKER (Using dynamic target date)
           let isWfhEvent = (titleUpper === 'WFH' || titleUpper === 'WORKING FROM HOME');
           
-          // Does this WFH event land on tomorrow?
           if (isWfhEvent && event.allDay && event.start) {
-            if (event.start.getFullYear() === targetTomorrow.getFullYear() && 
-                event.start.getMonth() === targetTomorrow.getMonth() && 
-                event.start.getDate() === targetTomorrow.getDate()) {
-              isWfhTomorrow = true;
+            if (event.start.getFullYear() === targetDate.getFullYear() && 
+                event.start.getMonth() === targetDate.getMonth() && 
+                event.start.getDate() === targetDate.getDate()) {
+              isWfhTarget = true;
             }
           }
 
-          // Auto Mode Evaluation
           if (overrideMode === "auto" && isTimeActive) {
             shouldHighlight = true;
             if (!busyOverrides.includes(currentStatus)) {
@@ -622,7 +656,6 @@
             }
           }
           
-          // Manual Override SMART Evaluation
           if (overrideMode === "busy" && overrideTarget !== "") {
              let titleLower = currentTitle.toLowerCase();
              let searchTerms = overrideTarget.toLowerCase().split(/\s+/).filter(word => word !== "");
@@ -633,7 +666,6 @@
              }
           }
 
-          // Apply styling dynamically
           let classNames = [];
           if (isWfhEvent) {
              classNames.push('hidden-event'); 
@@ -645,7 +677,6 @@
              }
           }
 
-          // LOOP BREAKER
           let newClassString = classNames.join(' ');
           let oldClassString = event.classNames.join(' ');
           
@@ -654,33 +685,34 @@
           }
         });
 
-        // Set Availability vs Tomorrow View State
+        // Interface Display Logic
         if (statusLower === "off the clock") {
           availContainer.style.display = "none";
-          tomorrowContainer.style.display = "block";
+          targetDayTitle.innerText = targetTitleText;
+          targetDayContainer.style.display = "block";
           
-          let tomorrowDay = targetTomorrow.getDay();
-          if (tomorrowDay === 0 || tomorrowDay === 6) {
-              tomorrowBadge.innerText = "Weekend";
-              tomorrowBadge.style.color = "#94a3b8";
+          let targetDayOfWeek = targetDate.getDay();
+          // Safety check: if target somehow lands on weekend
+          if (targetDayOfWeek === 0 || targetDayOfWeek === 6) {
+              targetDayBadge.innerText = "Weekend";
+              targetDayBadge.style.color = "#94a3b8";
           } else {
-              if (isWfhTomorrow) {
-                  tomorrowBadge.innerText = "Working From Home";
-                  tomorrowBadge.style.color = "#38bdf8"; 
+              if (isWfhTarget) {
+                  targetDayBadge.innerText = "Working From Home";
+                  targetDayBadge.style.color = "#38bdf8"; 
               } else {
-                  tomorrowBadge.innerText = "In Office";
-                  tomorrowBadge.style.color = "#4ade80"; 
+                  targetDayBadge.innerText = "In Office";
+                  targetDayBadge.style.color = "#4ade80"; 
               }
           }
         } else if (statusLower === "on shoot") {
           availContainer.style.display = "none";
-          tomorrowContainer.style.display = "none";
+          targetDayContainer.style.display = "none";
         } else {
           availContainer.style.display = "block";
-          tomorrowContainer.style.display = "none";
+          targetDayContainer.style.display = "none";
         }
 
-        // Set Busy Status
         if (overrideMode === "busy") {
           isBusy = true;
         } else if (overrideMode === "available") {
@@ -698,6 +730,21 @@
         } else {
           availBadge.innerText = "Available";
           availBadge.style.color = "#4ade80"; 
+        }
+
+        // Tab Auto-Revert Logic (5 Minutes)
+        if (isInitialLoad) {
+            switchToTab(defaultTab);
+            isInitialLoad = false;
+        } else {
+            // Check if 5 minutes (300,000 ms) have passed since a button was clicked
+            if (Date.now() - lastInteractionTime > 300000) {
+                if (defaultTab === 'today' && !btnToday.classList.contains('active')) {
+                    switchToTab('today');
+                } else if (defaultTab === 'tomorrow' && !btnTomorrow.classList.contains('active')) {
+                    switchToTab('tomorrow');
+                }
+            }
         }
       }
 
