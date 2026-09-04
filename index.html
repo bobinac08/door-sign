@@ -582,7 +582,7 @@
         const statusLower = currentStatus.toLowerCase(); 
         
         const busyOverrides = ["On Lunch", "Meeting", "On Shoot"];
-        const hideAvailStatuses = ["stepped out", "on lunch", "meeting", "on shoot"]; // Statuses where availability box is redundant
+        const hideAvailStatuses = ["stepped out", "on lunch", "meeting", "on shoot"]; 
         
         const availContainer = document.getElementById('availability-container');
         const targetDayContainer = document.getElementById('target-day-container');
@@ -647,17 +647,14 @@
           }
           let isDoneTask = (event.allDay && event.extendedProps.isDoneTask === true);
 
-          // WFH CALENDAR CHECKER 
           let isWfhEvent = (titleUpper === 'WFH' || titleUpper === 'WORKING FROM HOME');
           
           if (isWfhEvent && event.allDay && event.start) {
-            // Check against Target Date (Tomorrow/Monday)
             if (event.start.getFullYear() === targetDate.getFullYear() && 
                 event.start.getMonth() === targetDate.getMonth() && 
                 event.start.getDate() === targetDate.getDate()) {
               isWfhTarget = true;
             }
-            // Check against Today's Date to set Base Status
             if (event.start.getFullYear() === todayObj.getFullYear() && 
                 event.start.getMonth() === todayObj.getMonth() && 
                 event.start.getDate() === todayObj.getDate()) {
@@ -703,14 +700,12 @@
 
         // Lock in the baseline state based on today's calendar findings
         todayBaseStatus = foundWfhToday ? "Working From Home" : "In Office";
-// Lock in the baseline state based on today's calendar findings
-        todayBaseStatus = foundWfhToday ? "Working From Home" : "In Office";
 
         // Instantly sync the badge if it loaded the default before the calendar arrived
         const currentBadgeText = document.getElementById('location-badge').innerText.trim();
-        const activeOverrides = ["Stepped Out", "On Lunch", "On Shoot", "Meeting", "Off the Clock"];
+        const activeOverridesList = ["Stepped Out", "On Lunch", "On Shoot", "Meeting", "Off the Clock"];
         
-        if (!activeOverrides.includes(currentBadgeText) && currentBadgeText !== todayBaseStatus) {
+        if (!activeOverridesList.includes(currentBadgeText) && currentBadgeText !== todayBaseStatus) {
             document.getElementById('location-badge').innerText = todayBaseStatus;
             if (todayBaseStatus === "Working From Home") {
                 document.getElementById('location-badge').style.color = "#38bdf8"; 
@@ -719,9 +714,6 @@
             }
         }
 
-        // Interface Display Logic - Hiding Availability box during "away" states
-        if (statusLower === "off the clock") {
-          
         // Interface Display Logic - Hiding Availability box during "away" states
         if (statusLower === "off the clock") {
           availContainer.style.display = "none";
@@ -742,11 +734,9 @@
               }
           }
         } else if (hideAvailStatuses.includes(statusLower)) {
-          // Hide Availability for Meeting, Lunch, Stepped Out, On Shoot
           availContainer.style.display = "none";
           targetDayContainer.style.display = "none";
         } else {
-          // Normal Display (In Office / WFH)
           availContainer.style.display = "block";
           targetDayContainer.style.display = "none";
         }
