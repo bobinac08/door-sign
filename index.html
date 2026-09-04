@@ -439,7 +439,7 @@
         if (data.this === "succeeded" && data.with && data.with.length > 0) {
           let currentStatus = data.with[0].content.status;
           
-          // If the status from the phone is NOT an active override, strictly enforce the calendar's base status
+          // Strictly enforce the calendar's base status unless you have manually triggered a break/away override
           const activeOverrides = ["Stepped Out", "On Lunch", "On Shoot", "Meeting", "Off the Clock"];
           if (!activeOverrides.includes(currentStatus)) {
              currentStatus = todayBaseStatus;
@@ -453,17 +453,18 @@
             pageContainer.style.display = "none";
           }
           
+          // Color logic
           if (currentStatus === "In Office") {
             badge.style.color = "#4ade80"; 
           } else if (currentStatus === "Working From Home") {
             badge.style.color = "#38bdf8"; 
+          } else if (currentStatus === "Out of Office") {
+            badge.style.color = "#94a3b8"; // Slate gray for OOO
           } else if (currentStatus === "Stepped Out") {
             badge.style.color = "#facc15"; 
           } else if (currentStatus === "On Lunch") {
             badge.style.color = "#fb923c"; 
-          } else if (currentStatus === "On Shoot") {
-            badge.style.color = "#f87171"; 
-          } else if (currentStatus === "Meeting") {
+          } else if (currentStatus === "On Shoot" || currentStatus === "Meeting") {
             badge.style.color = "#f87171"; 
           } else {
             badge.style.color = "#ffffff"; 
@@ -582,7 +583,7 @@
         const statusLower = currentStatus.toLowerCase(); 
         
         const busyOverrides = ["On Lunch", "Meeting", "On Shoot"];
-        const hideAvailStatuses = ["stepped out", "on lunch", "meeting", "on shoot"]; 
+        const hideAvailStatuses = ["stepped out", "on lunch", "meeting", "on shoot", "out of office"]; 
         
         const availContainer = document.getElementById('availability-container');
         const targetDayContainer = document.getElementById('target-day-container');
@@ -598,6 +599,7 @@
         let targetTitleText = "TOMORROW";
         let defaultTab = 'today';
 
+        // Target Date Logic
         if (currentDay === 0 || currentDay === 6 || (statusLower === "off the clock" && isEvening)) {
             if (currentDay === 5) {
                 targetDate.setDate(targetDate.getDate() + 3);
@@ -626,7 +628,9 @@
         }
 
         let isWfhTarget = false;
+        let isOooTarget = false;
         let foundWfhToday = false;
+        let foundOooToday = false;
         let todayObj = new Date();
 
         events.forEach(event => {
@@ -637,6 +641,7 @@
           let currentTitle = event.title || "";
           let titleUpper = currentTitle.toUpperCase();
           
+          // Task completion parsing
           if (titleUpper.includes('[X]') || titleUpper.includes('✅') || titleUpper.includes('DONE:')) {
             let cleanTitle = currentTitle.replace(/✅|\[X\]|DONE:/gi, '').trim();
             if (currentTitle !== cleanTitle) {
@@ -647,18 +652,24 @@
           }
           let isDoneTask = (event.allDay && event.extendedProps.isDoneTask === true);
 
+          // Full-Day Event Checkers 
           let isWfhEvent = (titleUpper === 'WFH' || titleUpper === 'WORKING FROM HOME');
+          let isOooEvent = (titleUpper === 'OOO');
           
-          if (isWfhEvent && event.allDay && event.start) {
+          if ((isWfhEvent || isOooEvent) && event.allDay && event.start) {
+            // Check against Target Date for the Evening display
             if (event.start.getFullYear() === targetDate.getFullYear() && 
                 event.start.getMonth() === targetDate.getMonth() && 
                 event.start.getDate() === targetDate.getDate()) {
-              isWfhTarget = true;
+              if (isWfhEvent) isWfhTarget = true;
+              if (isOooEvent) isOooTarget = true;
             }
+            // Check against Today's Date to set current Base Status
             if (event.start.getFullYear() === todayObj.getFullYear() && 
                 event.start.getMonth() === todayObj.getMonth() && 
                 event.start.getDate() === todayObj.getDate()) {
-              foundWfhToday = true;
+              if (isWfhEvent) foundWfhToday = true;
+              if (isOooEvent) foundOooToday = true;
             }
           }
 
@@ -680,7 +691,7 @@
           }
 
           let classNames = [];
-          if (isWfhEvent) {
+          if (isWfhEvent || isOooEvent) {
              classNames.push('hidden-event'); 
           } else {
              if (shouldHighlight && !isDoneTask) {
@@ -698,23 +709,32 @@
           }
         });
 
-        // Lock in the baseline state based on today's calendar findings
-        todayBaseStatus = foundWfhToday ? "Working From Home" : "In Office";
+        // Lock in the baseline state based on today's calendar findings (OOO takes highest priority)
+        if (foundOooToday) {
+            todayBaseStatus = "Out of Office";
+        } else if (foundWfhToday) {
+            todayBaseStatus = "Working From Home";
+        } else {
+            todayBaseStatus = "In Office";
+        }
 
-        // Instantly sync the badge if it loaded the default before the calendar arrived
+        // RACE CONDITION FIX: Instantly sync the badge if it loaded the default before the calendar arrived
         const currentBadgeText = document.getElementById('location-badge').innerText.trim();
         const activeOverridesList = ["Stepped Out", "On Lunch", "On Shoot", "Meeting", "Off the Clock"];
         
         if (!activeOverridesList.includes(currentBadgeText) && currentBadgeText !== todayBaseStatus) {
             document.getElementById('location-badge').innerText = todayBaseStatus;
+            
             if (todayBaseStatus === "Working From Home") {
                 document.getElementById('location-badge').style.color = "#38bdf8"; 
+            } else if (todayBaseStatus === "Out of Office") {
+                document.getElementById('location-badge').style.color = "#94a3b8"; 
             } else {
                 document.getElementById('location-badge').style.color = "#4ade80"; 
             }
         }
 
-        // Interface Display Logic - Hiding Availability box during "away" states
+        // Interface Display Logic
         if (statusLower === "off the clock") {
           availContainer.style.display = "none";
           targetDayTitle.innerText = targetTitleText;
@@ -725,7 +745,10 @@
               targetDayBadge.innerText = "Weekend";
               targetDayBadge.style.color = "#94a3b8";
           } else {
-              if (isWfhTarget) {
+              if (isOooTarget) {
+                  targetDayBadge.innerText = "Out of Office";
+                  targetDayBadge.style.color = "#94a3b8"; 
+              } else if (isWfhTarget) {
                   targetDayBadge.innerText = "Working From Home";
                   targetDayBadge.style.color = "#38bdf8"; 
               } else {
@@ -733,7 +756,8 @@
                   targetDayBadge.style.color = "#4ade80"; 
               }
           }
-        } else if (hideAvailStatuses.includes(statusLower)) {
+        } else if (hideAvailStatuses.includes(statusLower) || todayBaseStatus === "Out of Office") {
+          // Hide Availability for breaks, shoots, meetings, or if you are entirely out of the office today
           availContainer.style.display = "none";
           targetDayContainer.style.display = "none";
         } else {
@@ -741,6 +765,7 @@
           targetDayContainer.style.display = "none";
         }
 
+        // Busy state overrides
         if (overrideMode === "busy") {
           isBusy = true;
         } else if (overrideMode === "available") {
