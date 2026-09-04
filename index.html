@@ -344,6 +344,9 @@
   </div>
 
   <script>
+    // Global variable to hold the daily baseline location based on the calendar
+    let todayBaseStatus = "In Office";
+
     // PAGING LOGIC (NTFY.SH)
     async function sendPageAlert() {
       const btn = document.getElementById('page-button');
@@ -434,7 +437,14 @@
         const data = await response.json();
         
         if (data.this === "succeeded" && data.with && data.with.length > 0) {
-          const currentStatus = data.with[0].content.status;
+          let currentStatus = data.with[0].content.status;
+          
+          // If the status from the phone is NOT an active override, strictly enforce the calendar's base status
+          const activeOverrides = ["Stepped Out", "On Lunch", "On Shoot", "Meeting", "Off the Clock"];
+          if (!activeOverrides.includes(currentStatus)) {
+             currentStatus = todayBaseStatus;
+          }
+
           badge.innerText = currentStatus;
           
           if (currentStatus === "Stepped Out") {
@@ -508,7 +518,6 @@
       let lastInteractionTime = 0;
       let isInitialLoad = true;
 
-      // Smart Tab Switching Function
       function switchToTab(tabName) {
         if (tabName === 'today') {
           calendar.today(); 
@@ -518,9 +527,9 @@
           let d = new Date();
           let currentDay = d.getDay();
           let offset = 1;
-          if (currentDay === 5) offset = 3; // Friday -> Monday
-          else if (currentDay === 6) offset = 2; // Saturday -> Monday
-          else if (currentDay === 0) offset = 1; // Sunday -> Monday
+          if (currentDay === 5) offset = 3; 
+          else if (currentDay === 6) offset = 2; 
+          else if (currentDay === 0) offset = 1; 
           
           d.setDate(d.getDate() + offset);
           calendar.gotoDate(d); 
@@ -581,15 +590,13 @@
         const events = calendar.getEvents();
         const now = new Date();
         const currentDay = now.getDay();
-        const isEvening = now.getHours() >= 12; // Split morning/evening logic at Noon
+        const isEvening = now.getHours() >= 12; 
 
         let targetDate = new Date();
         let targetTitleText = "TOMORROW";
         let defaultTab = 'today';
 
-        // Calculate Target Date Context
         if (currentDay === 0 || currentDay === 6 || (statusLower === "off the clock" && isEvening)) {
-            // Forward-Looking View (Evening or Weekend)
             if (currentDay === 5) {
                 targetDate.setDate(targetDate.getDate() + 3);
                 targetTitleText = "MONDAY";
@@ -605,13 +612,11 @@
             }
             defaultTab = 'tomorrow';
         } else {
-            // Morning View (Before start of day) OR normal working hours
-            targetDate = new Date(); // Evaluate Today
+            targetDate = new Date(); 
             targetTitleText = "TODAY";
             defaultTab = 'today';
         }
 
-        // Rename the Tomorrow button dynamically for weekends
         if (currentDay === 5 || currentDay === 6 || currentDay === 0) {
            btnTomorrow.innerText = "Monday";
         } else {
@@ -619,6 +624,8 @@
         }
 
         let isWfhTarget = false;
+        let foundWfhToday = false;
+        let todayObj = new Date();
 
         events.forEach(event => {
           let shouldHighlight = false;
@@ -638,14 +645,21 @@
           }
           let isDoneTask = (event.allDay && event.extendedProps.isDoneTask === true);
 
-          // WFH CALENDAR CHECKER (Using dynamic target date)
+          // WFH CALENDAR CHECKER 
           let isWfhEvent = (titleUpper === 'WFH' || titleUpper === 'WORKING FROM HOME');
           
           if (isWfhEvent && event.allDay && event.start) {
+            // Check against Target Date (Tomorrow/Monday)
             if (event.start.getFullYear() === targetDate.getFullYear() && 
                 event.start.getMonth() === targetDate.getMonth() && 
                 event.start.getDate() === targetDate.getDate()) {
               isWfhTarget = true;
+            }
+            // Check against Today's Date to set Base Status
+            if (event.start.getFullYear() === todayObj.getFullYear() && 
+                event.start.getMonth() === todayObj.getMonth() && 
+                event.start.getDate() === todayObj.getDate()) {
+              foundWfhToday = true;
             }
           }
 
@@ -685,6 +699,9 @@
           }
         });
 
+        // Lock in the baseline state based on today's calendar findings
+        todayBaseStatus = foundWfhToday ? "Working From Home" : "In Office";
+
         // Interface Display Logic
         if (statusLower === "off the clock") {
           availContainer.style.display = "none";
@@ -692,7 +709,6 @@
           targetDayContainer.style.display = "block";
           
           let targetDayOfWeek = targetDate.getDay();
-          // Safety check: if target somehow lands on weekend
           if (targetDayOfWeek === 0 || targetDayOfWeek === 6) {
               targetDayBadge.innerText = "Weekend";
               targetDayBadge.style.color = "#94a3b8";
@@ -737,7 +753,6 @@
             switchToTab(defaultTab);
             isInitialLoad = false;
         } else {
-            // Check if 5 minutes (300,000 ms) have passed since a button was clicked
             if (Date.now() - lastInteractionTime > 300000) {
                 if (defaultTab === 'today' && !btnToday.classList.contains('active')) {
                     switchToTab('today');
