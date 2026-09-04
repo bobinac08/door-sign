@@ -441,7 +441,6 @@
         console.error("Failed to fetch status:", error);
       }
       
-      // Dispatch an event so the master UI renderer knows to paint the screen
       document.dispatchEvent(new Event('locationUpdated'));
     }
     
@@ -489,7 +488,6 @@
       });
       calendar.render();
 
-      // Tab Event Listeners now force a master UI update immediately
       btnToday.addEventListener('click', function() {
         lastInteractionTime = Date.now();
         switchToTab('today');
@@ -535,40 +533,39 @@
         const currentDay = now.getDay();
         const isEvening = now.getHours() >= 12; 
 
-        // Target Date Logic
-        let targetDate = new Date();
-        let targetTitleText = "TOMORROW";
-        let defaultTab = 'today';
-
-        if (currentDay === 0 || currentDay === 6 || (dweetStatus.toLowerCase() === "off the clock" && isEvening)) {
-            if (currentDay === 5) {
-                targetDate.setDate(targetDate.getDate() + 3);
-                targetTitleText = "MONDAY";
-            } else if (currentDay === 6) {
-                targetDate.setDate(targetDate.getDate() + 2);
-                targetTitleText = "MONDAY";
-            } else if (currentDay === 0) {
-                targetDate.setDate(targetDate.getDate() + 1);
-                targetTitleText = "MONDAY";
-            } else {
-                targetDate.setDate(targetDate.getDate() + 1);
-                targetTitleText = "TOMORROW";
-            }
-            defaultTab = 'tomorrow';
+        // 1. Calculate the static "Future" Date (Tomorrow or Monday)
+        let futureDate = new Date();
+        let futureTitle = "TOMORROW";
+        
+        if (currentDay === 5) { // Friday -> Monday
+            futureDate.setDate(futureDate.getDate() + 3);
+            futureTitle = "MONDAY";
+        } else if (currentDay === 6) { // Saturday -> Monday
+            futureDate.setDate(futureDate.getDate() + 2);
+            futureTitle = "MONDAY";
+        } else if (currentDay === 0) { // Sunday -> Monday
+            futureDate.setDate(futureDate.getDate() + 1);
+            futureTitle = "MONDAY";
         } else {
-            targetDate = new Date(); 
-            targetTitleText = "TODAY";
-            defaultTab = 'today';
+            futureDate.setDate(futureDate.getDate() + 1);
+            futureTitle = "TOMORROW";
         }
 
+        // 2. Set Default Tab logic (Off the Clock forces Tomorrow tab)
+        let defaultTab = 'today';
+        if (currentDay === 0 || currentDay === 6 || (dweetStatus.toLowerCase() === "off the clock" && isEvening)) {
+            defaultTab = 'tomorrow';
+        }
+
+        // Rename tab button dynamically
         if (currentDay === 5 || currentDay === 6 || currentDay === 0) {
            btnTomorrow.innerText = "Monday";
         } else {
            btnTomorrow.innerText = "Tomorrow";
         }
 
-        let isWfhTarget = false;
-        let isOooTarget = false;
+        let isWfhFuture = false;
+        let isOooFuture = false;
         let foundWfhToday = false;
         let foundOooToday = false;
         let todayObj = new Date();
@@ -595,12 +592,12 @@
           let isOooEvent = (titleUpper === 'OOO');
           
           if ((isWfhEvent || isOooEvent) && event.allDay && event.start) {
-            // Check against Target Date
-            if (event.start.getFullYear() === targetDate.getFullYear() && 
-                event.start.getMonth() === targetDate.getMonth() && 
-                event.start.getDate() === targetDate.getDate()) {
-              if (isWfhEvent) isWfhTarget = true;
-              if (isOooEvent) isOooTarget = true;
+            // Check against Future Date (Tomorrow/Monday)
+            if (event.start.getFullYear() === futureDate.getFullYear() && 
+                event.start.getMonth() === futureDate.getMonth() && 
+                event.start.getDate() === futureDate.getDate()) {
+              if (isWfhEvent) isWfhFuture = true;
+              if (isOooEvent) isOooFuture = true;
             }
             // Check against Today's Date
             if (event.start.getFullYear() === todayObj.getFullYear() && 
@@ -647,7 +644,7 @@
           }
         });
 
-        // Determine Base Statuses
+        // 3. Determine Final Base Statuses
         if (foundOooToday) {
             todayBaseStatus = "Out of Office";
         } else if (foundWfhToday) {
@@ -656,19 +653,18 @@
             todayBaseStatus = "In Office";
         }
 
-        let targetBaseStatus = "In Office";
-        if (isOooTarget) {
-            targetBaseStatus = "Out of Office";
-        } else if (isWfhTarget) {
-            targetBaseStatus = "Working From Home";
+        let futureBaseStatus = "In Office";
+        if (isOooFuture) {
+            futureBaseStatus = "Out of Office";
+        } else if (isWfhFuture) {
+            futureBaseStatus = "Working From Home";
         }
 
-        // What is the effective real-time status for today?
         const activeOverridesList = ["Stepped Out", "On Lunch", "On Shoot", "Meeting", "Off the Clock"];
         let effectiveTodayStatus = activeOverridesList.includes(dweetStatus) ? dweetStatus : todayBaseStatus;
         let statusLower = effectiveTodayStatus.toLowerCase();
 
-        // Color Helper Function
+        // 4. Color Helper Function
         function getColorForStatus(status) {
             if (status === "In Office") return "#4ade80";
             if (status === "Working From Home") return "#38bdf8";
@@ -680,14 +676,14 @@
             return "#ffffff";
         }
 
-        // DISPLAY RENDERER - Dynamically updates based on which Tab is active
+        // 5. DISPLAY RENDERER - Dynamically updates based on which Tab is active
         let activeTab = btnTomorrow.classList.contains('active') ? 'tomorrow' : 'today';
 
         if (activeTab === 'tomorrow') {
             // User is looking at the Tomorrow/Monday schedule tab
-            mainTitle.innerText = targetTitleText; 
-            mainBadge.innerText = targetBaseStatus;
-            mainBadge.style.color = getColorForStatus(targetBaseStatus);
+            mainTitle.innerText = futureTitle; 
+            mainBadge.innerText = futureBaseStatus;
+            mainBadge.style.color = getColorForStatus(futureBaseStatus);
             
             // Clean up the UI context for a future date
             availContainer.style.display = "none";
@@ -733,16 +729,16 @@
             // Availability & Target Day Context Boxes
             if (statusLower === "off the clock") {
                 availContainer.style.display = "none";
-                document.getElementById('target-day-title').innerText = targetTitleText;
                 targetDayContainer.style.display = "block";
                 
-                let targetDayOfWeek = targetDate.getDay();
-                if (targetDayOfWeek === 0 || targetDayOfWeek === 6) {
-                    targetDayBadge.innerText = "Weekend";
-                    targetDayBadge.style.color = "#94a3b8";
+                if (isEvening || currentDay === 0 || currentDay === 6) {
+                    document.getElementById('target-day-title').innerText = futureTitle;
+                    targetDayBadge.innerText = futureBaseStatus;
+                    targetDayBadge.style.color = getColorForStatus(futureBaseStatus);
                 } else {
-                    targetDayBadge.innerText = targetBaseStatus;
-                    targetDayBadge.style.color = getColorForStatus(targetBaseStatus);
+                    document.getElementById('target-day-title').innerText = "TODAY";
+                    targetDayBadge.innerText = todayBaseStatus;
+                    targetDayBadge.style.color = getColorForStatus(todayBaseStatus);
                 }
             } else if (hideAvailStatuses.includes(statusLower) || todayBaseStatus === "Out of Office") {
                 availContainer.style.display = "none";
