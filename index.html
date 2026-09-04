@@ -299,7 +299,7 @@
         <div class="card-header">📍 Location & Status</div>
         
         <div class="location-box">
-          <div class="location-title">CURRENTLY</div>
+          <div class="location-title" id="main-location-title">CURRENTLY</div>
           <div id="location-badge" class="location-badge">Updating...</div>
           
           <div id="shoot-map-container">
@@ -344,8 +344,12 @@
   </div>
 
   <script>
-    // Global variable to hold the daily baseline location based on the calendar
+    // Global State Variables
     let todayBaseStatus = "In Office";
+    let dweetStatus = "In Office";
+    let dweetMapData = null;
+    let mapInstance = null;
+    let mapMarker = null;
 
     // PAGING LOGIC (NTFY.SH)
     async function sendPageAlert() {
@@ -406,29 +410,13 @@
     setInterval(updateClock, 1000);
     updateClock();
 
-    let mapInstance = null;
-    let mapMarker = null;
-
     // 2. LOCATION BY WIFI & TIME (DWEET.CC)
     async function updateLocationStatus() {
       const now = new Date();
       const day = now.getDay();
       
-      const badge = document.getElementById('location-badge');
-      const mapContainer = document.getElementById('shoot-map-container');
-      const pageContainer = document.getElementById('page-container');
-
       if (day === 0 || day === 6) {
-        badge.innerText = "Off the Clock";
-        badge.style.color = "#94a3b8"; 
-        mapContainer.style.display = "none";
-        pageContainer.style.display = "none";
-        
-        if (mapInstance) {
-          mapInstance.remove();
-          mapInstance = null;
-          mapMarker = null;
-        }
+        dweetStatus = "Off the Clock";
         document.dispatchEvent(new Event('locationUpdated')); 
         return; 
       }
@@ -437,80 +425,30 @@
         const data = await response.json();
         
         if (data.this === "succeeded" && data.with && data.with.length > 0) {
-          let currentStatus = data.with[0].content.status;
+          dweetStatus = data.with[0].content.status;
           
-          // Strictly enforce the calendar's base status unless you have manually triggered a break/away override
-          const activeOverrides = ["Stepped Out", "On Lunch", "On Shoot", "Meeting", "Off the Clock"];
-          if (!activeOverrides.includes(currentStatus)) {
-             currentStatus = todayBaseStatus;
-          }
-
-          badge.innerText = currentStatus;
-          
-          if (currentStatus === "Stepped Out") {
-            pageContainer.style.display = "block";
+          if (dweetStatus === "On Shoot" && data.with[0].content.lat && data.with[0].content.lon) {
+             dweetMapData = {
+                 lat: parseFloat(data.with[0].content.lat),
+                 lon: parseFloat(data.with[0].content.lon),
+                 name: data.with[0].content.name || "Shoot Location"
+             };
           } else {
-            pageContainer.style.display = "none";
-          }
-          
-          // Color logic
-          if (currentStatus === "In Office") {
-            badge.style.color = "#4ade80"; 
-          } else if (currentStatus === "Working From Home") {
-            badge.style.color = "#38bdf8"; 
-          } else if (currentStatus === "Out of Office") {
-            badge.style.color = "#94a3b8"; // Slate gray for OOO
-          } else if (currentStatus === "Stepped Out") {
-            badge.style.color = "#facc15"; 
-          } else if (currentStatus === "On Lunch") {
-            badge.style.color = "#fb923c"; 
-          } else if (currentStatus === "On Shoot" || currentStatus === "Meeting") {
-            badge.style.color = "#f87171"; 
-          } else {
-            badge.style.color = "#ffffff"; 
-          }
-
-          if (currentStatus === "On Shoot" && data.with[0].content.lat && data.with[0].content.lon) {
-            const locName = data.with[0].content.name || "Shoot Location";
-            const lat = parseFloat(data.with[0].content.lat);
-            const lon = parseFloat(data.with[0].content.lon);
-
-            document.getElementById('shoot-location-name').innerText = `📍 ${locName}`;
-            mapContainer.style.display = "block";
-
-            if (!mapInstance) {
-              mapInstance = L.map('shoot-map', {
-                zoomControl: false,
-                attributionControl: false
-              }).setView([lat, lon], 13);
-              
-              L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapInstance);
-              mapMarker = L.marker([lat, lon]).addTo(mapInstance);
-            } else {
-              mapInstance.setView([lat, lon], 13);
-              mapMarker.setLatLng([lat, lon]);
-              mapInstance.invalidateSize(); 
-            }
-          } else {
-            mapContainer.style.display = "none";
-            if (mapInstance) {
-              mapInstance.remove();
-              mapInstance = null;
-              mapMarker = null;
-            }
+             dweetMapData = null;
           }
         }
       } catch (error) {
         console.error("Failed to fetch status:", error);
       }
       
+      // Dispatch an event so the master UI renderer knows to paint the screen
       document.dispatchEvent(new Event('locationUpdated'));
     }
     
     setInterval(updateLocationStatus, 15000);
     updateLocationStatus();
 
-    // 3. FULLCALENDAR VIA GOOGLE APPS SCRIPT PROXY
+    // 3. FULLCALENDAR & MASTER UI RENDERER
     document.addEventListener('DOMContentLoaded', function() {
       const calendarEl = document.getElementById('calendar');
       const btnToday = document.getElementById('btn-today');
@@ -551,17 +489,20 @@
       });
       calendar.render();
 
+      // Tab Event Listeners now force a master UI update immediately
       btnToday.addEventListener('click', function() {
         lastInteractionTime = Date.now();
         switchToTab('today');
+        updateAvailability();
       });
 
       btnTomorrow.addEventListener('click', function() {
         lastInteractionTime = Date.now();
         switchToTab('tomorrow');
+        updateAvailability();
       });
 
-      // AVAILABILITY & SMART TARGET LOGIC
+      // MASTER UI RENDERING FUNCTION
       async function updateAvailability() {
         let isBusy = false;
         let overrideMode = "auto";
@@ -578,29 +519,28 @@
           console.error("Failed to fetch override mode:", error);
         }
 
-        const rawStatus = document.getElementById('location-badge').innerText;
-        const currentStatus = rawStatus.trim(); 
-        const statusLower = currentStatus.toLowerCase(); 
-        
         const busyOverrides = ["On Lunch", "Meeting", "On Shoot"];
         const hideAvailStatuses = ["stepped out", "on lunch", "meeting", "on shoot", "out of office"]; 
         
+        const mainBadge = document.getElementById('location-badge');
+        const mainTitle = document.getElementById('main-location-title');
         const availContainer = document.getElementById('availability-container');
         const targetDayContainer = document.getElementById('target-day-container');
         const targetDayBadge = document.getElementById('target-day-badge');
-        const targetDayTitle = document.getElementById('target-day-title');
+        const mapContainer = document.getElementById('shoot-map-container');
+        const pageContainer = document.getElementById('page-container');
 
         const events = calendar.getEvents();
         const now = new Date();
         const currentDay = now.getDay();
         const isEvening = now.getHours() >= 12; 
 
+        // Target Date Logic
         let targetDate = new Date();
         let targetTitleText = "TOMORROW";
         let defaultTab = 'today';
 
-        // Target Date Logic
-        if (currentDay === 0 || currentDay === 6 || (statusLower === "off the clock" && isEvening)) {
+        if (currentDay === 0 || currentDay === 6 || (dweetStatus.toLowerCase() === "off the clock" && isEvening)) {
             if (currentDay === 5) {
                 targetDate.setDate(targetDate.getDate() + 3);
                 targetTitleText = "MONDAY";
@@ -641,7 +581,6 @@
           let currentTitle = event.title || "";
           let titleUpper = currentTitle.toUpperCase();
           
-          // Task completion parsing
           if (titleUpper.includes('[X]') || titleUpper.includes('✅') || titleUpper.includes('DONE:')) {
             let cleanTitle = currentTitle.replace(/✅|\[X\]|DONE:/gi, '').trim();
             if (currentTitle !== cleanTitle) {
@@ -652,19 +591,18 @@
           }
           let isDoneTask = (event.allDay && event.extendedProps.isDoneTask === true);
 
-          // Full-Day Event Checkers 
           let isWfhEvent = (titleUpper === 'WFH' || titleUpper === 'WORKING FROM HOME');
           let isOooEvent = (titleUpper === 'OOO');
           
           if ((isWfhEvent || isOooEvent) && event.allDay && event.start) {
-            // Check against Target Date for the Evening display
+            // Check against Target Date
             if (event.start.getFullYear() === targetDate.getFullYear() && 
                 event.start.getMonth() === targetDate.getMonth() && 
                 event.start.getDate() === targetDate.getDate()) {
               if (isWfhEvent) isWfhTarget = true;
               if (isOooEvent) isOooTarget = true;
             }
-            // Check against Today's Date to set current Base Status
+            // Check against Today's Date
             if (event.start.getFullYear() === todayObj.getFullYear() && 
                 event.start.getMonth() === todayObj.getMonth() && 
                 event.start.getDate() === todayObj.getDate()) {
@@ -675,7 +613,7 @@
 
           if (overrideMode === "auto" && isTimeActive) {
             shouldHighlight = true;
-            if (!busyOverrides.includes(currentStatus)) {
+            if (!busyOverrides.includes(dweetStatus)) {
                isBusy = true; 
             }
           }
@@ -709,7 +647,7 @@
           }
         });
 
-        // Lock in the baseline state based on today's calendar findings (OOO takes highest priority)
+        // Determine Base Statuses
         if (foundOooToday) {
             todayBaseStatus = "Out of Office";
         } else if (foundWfhToday) {
@@ -718,60 +656,110 @@
             todayBaseStatus = "In Office";
         }
 
-        // RACE CONDITION FIX: Instantly sync the badge if it loaded the default before the calendar arrived
-        const currentBadgeText = document.getElementById('location-badge').innerText.trim();
+        let targetBaseStatus = "In Office";
+        if (isOooTarget) {
+            targetBaseStatus = "Out of Office";
+        } else if (isWfhTarget) {
+            targetBaseStatus = "Working From Home";
+        }
+
+        // What is the effective real-time status for today?
         const activeOverridesList = ["Stepped Out", "On Lunch", "On Shoot", "Meeting", "Off the Clock"];
-        
-        if (!activeOverridesList.includes(currentBadgeText) && currentBadgeText !== todayBaseStatus) {
-            document.getElementById('location-badge').innerText = todayBaseStatus;
+        let effectiveTodayStatus = activeOverridesList.includes(dweetStatus) ? dweetStatus : todayBaseStatus;
+        let statusLower = effectiveTodayStatus.toLowerCase();
+
+        // Color Helper Function
+        function getColorForStatus(status) {
+            if (status === "In Office") return "#4ade80";
+            if (status === "Working From Home") return "#38bdf8";
+            if (status === "Out of Office") return "#94a3b8";
+            if (status === "Stepped Out") return "#facc15";
+            if (status === "On Lunch") return "#fb923c";
+            if (status === "On Shoot" || status === "Meeting") return "#f87171";
+            if (status === "Off the Clock") return "#94a3b8";
+            return "#ffffff";
+        }
+
+        // DISPLAY RENDERER - Dynamically updates based on which Tab is active
+        let activeTab = btnTomorrow.classList.contains('active') ? 'tomorrow' : 'today';
+
+        if (activeTab === 'tomorrow') {
+            // User is looking at the Tomorrow/Monday schedule tab
+            mainTitle.innerText = targetTitleText; 
+            mainBadge.innerText = targetBaseStatus;
+            mainBadge.style.color = getColorForStatus(targetBaseStatus);
             
-            if (todayBaseStatus === "Working From Home") {
-                document.getElementById('location-badge').style.color = "#38bdf8"; 
-            } else if (todayBaseStatus === "Out of Office") {
-                document.getElementById('location-badge').style.color = "#94a3b8"; 
+            // Clean up the UI context for a future date
+            availContainer.style.display = "none";
+            targetDayContainer.style.display = "none";
+            mapContainer.style.display = "none";
+            pageContainer.style.display = "none";
+            
+        } else {
+            // User is looking at the Today schedule tab
+            mainTitle.innerText = "CURRENTLY";
+            mainBadge.innerText = effectiveTodayStatus;
+            mainBadge.style.color = getColorForStatus(effectiveTodayStatus);
+
+            // Map Logic
+            if (effectiveTodayStatus === "On Shoot" && dweetMapData) {
+                document.getElementById('shoot-location-name').innerText = `📍 ${dweetMapData.name}`;
+                mapContainer.style.display = "block";
+                if (!mapInstance) {
+                    mapInstance = L.map('shoot-map', { zoomControl: false, attributionControl: false }).setView([dweetMapData.lat, dweetMapData.lon], 13);
+                    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapInstance);
+                    mapMarker = L.marker([dweetMapData.lat, dweetMapData.lon]).addTo(mapInstance);
+                } else {
+                    mapInstance.setView([dweetMapData.lat, dweetMapData.lon], 13);
+                    mapMarker.setLatLng([dweetMapData.lat, dweetMapData.lon]);
+                    mapInstance.invalidateSize();
+                }
             } else {
-                document.getElementById('location-badge').style.color = "#4ade80"; 
+                mapContainer.style.display = "none";
+                if (mapInstance) {
+                    mapInstance.remove();
+                    mapInstance = null;
+                    mapMarker = null;
+                }
+            }
+
+            // Paging Button
+            if (effectiveTodayStatus === "Stepped Out") {
+                pageContainer.style.display = "block";
+            } else {
+                pageContainer.style.display = "none";
+            }
+
+            // Availability & Target Day Context Boxes
+            if (statusLower === "off the clock") {
+                availContainer.style.display = "none";
+                document.getElementById('target-day-title').innerText = targetTitleText;
+                targetDayContainer.style.display = "block";
+                
+                let targetDayOfWeek = targetDate.getDay();
+                if (targetDayOfWeek === 0 || targetDayOfWeek === 6) {
+                    targetDayBadge.innerText = "Weekend";
+                    targetDayBadge.style.color = "#94a3b8";
+                } else {
+                    targetDayBadge.innerText = targetBaseStatus;
+                    targetDayBadge.style.color = getColorForStatus(targetBaseStatus);
+                }
+            } else if (hideAvailStatuses.includes(statusLower) || todayBaseStatus === "Out of Office") {
+                availContainer.style.display = "none";
+                targetDayContainer.style.display = "none";
+            } else {
+                availContainer.style.display = "block";
+                targetDayContainer.style.display = "none";
             }
         }
 
-        // Interface Display Logic
-        if (statusLower === "off the clock") {
-          availContainer.style.display = "none";
-          targetDayTitle.innerText = targetTitleText;
-          targetDayContainer.style.display = "block";
-          
-          let targetDayOfWeek = targetDate.getDay();
-          if (targetDayOfWeek === 0 || targetDayOfWeek === 6) {
-              targetDayBadge.innerText = "Weekend";
-              targetDayBadge.style.color = "#94a3b8";
-          } else {
-              if (isOooTarget) {
-                  targetDayBadge.innerText = "Out of Office";
-                  targetDayBadge.style.color = "#94a3b8"; 
-              } else if (isWfhTarget) {
-                  targetDayBadge.innerText = "Working From Home";
-                  targetDayBadge.style.color = "#38bdf8"; 
-              } else {
-                  targetDayBadge.innerText = "In Office";
-                  targetDayBadge.style.color = "#4ade80"; 
-              }
-          }
-        } else if (hideAvailStatuses.includes(statusLower) || todayBaseStatus === "Out of Office") {
-          // Hide Availability for breaks, shoots, meetings, or if you are entirely out of the office today
-          availContainer.style.display = "none";
-          targetDayContainer.style.display = "none";
-        } else {
-          availContainer.style.display = "block";
-          targetDayContainer.style.display = "none";
-        }
-
-        // Busy state overrides
+        // Busy State Calculation
         if (overrideMode === "busy") {
           isBusy = true;
         } else if (overrideMode === "available") {
           isBusy = false;
         } else {
-          if (busyOverrides.includes(currentStatus)) {
+          if (busyOverrides.includes(effectiveTodayStatus)) {
             isBusy = true;
           }
         }
@@ -793,8 +781,10 @@
             if (Date.now() - lastInteractionTime > 300000) {
                 if (defaultTab === 'today' && !btnToday.classList.contains('active')) {
                     switchToTab('today');
+                    updateAvailability();
                 } else if (defaultTab === 'tomorrow' && !btnTomorrow.classList.contains('active')) {
                     switchToTab('tomorrow');
+                    updateAvailability();
                 }
             }
         }
