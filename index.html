@@ -338,7 +338,10 @@
           <button id="btn-tomorrow" class="tab-btn">Tomorrow</button>
         </div>
       </div>
+      <!-- Visual Calendar -->
       <div id="calendar"></div>
+      <!-- Invisible "Brain" Calendar for full context -->
+      <div id="calendar-brain" style="display: none;"></div>
     </div>
 
   </div>
@@ -350,6 +353,8 @@
     let dweetMapData = null;
     let mapInstance = null;
     let mapMarker = null;
+
+    const CALENDAR_URL = 'https://script.google.com/macros/s/AKfycbzKreOXo-BU4tJaEFTJwTHD6sjq8TuV_cPpCXIWyjjO3XcfBbiyBdshodN_qAwTiaw9dA/exec';
 
     // PAGING LOGIC (NTFY.SH)
     async function sendPageAlert() {
@@ -449,12 +454,36 @@
 
     // 3. FULLCALENDAR & MASTER UI RENDERER
     document.addEventListener('DOMContentLoaded', function() {
-      const calendarEl = document.getElementById('calendar');
       const btnToday = document.getElementById('btn-today');
       const btnTomorrow = document.getElementById('btn-tomorrow');
       
       let lastInteractionTime = 0;
       let isInitialLoad = true;
+
+      // Initialize the invisible "Brain" Calendar (Loads next 14 days into memory)
+      const brainCalendarEl = document.getElementById('calendar-brain');
+      const brainCalendar = new FullCalendar.Calendar(brainCalendarEl, {
+        initialView: 'customDuration',
+        views: {
+          customDuration: {
+            type: 'list',
+            duration: { days: 14 }
+          }
+        },
+        events: { url: CALENDAR_URL, format: 'ics' }
+      });
+      brainCalendar.render();
+
+      // Initialize the Visual Calendar (Loads single day for UI)
+      const calendarEl = document.getElementById('calendar');
+      const calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'listDay', 
+        headerToolbar: false,
+        noEventsContent: 'No events scheduled.',
+        allDayText: '', 
+        events: { url: CALENDAR_URL, format: 'ics' }
+      });
+      calendar.render();
 
       function switchToTab(tabName) {
         if (tabName === 'today') {
@@ -475,18 +504,6 @@
           btnToday.classList.remove('active');
         }
       }
-      
-      const calendar = new FullCalendar.Calendar(calendarEl, {
-        initialView: 'listDay', 
-        headerToolbar: false,
-        noEventsContent: 'No events scheduled.',
-        allDayText: '', 
-        events: {
-          url: 'https://script.google.com/macros/s/AKfycbzKreOXo-BU4tJaEFTJwTHD6sjq8TuV_cPpCXIWyjjO3XcfBbiyBdshodN_qAwTiaw9dA/exec',
-          format: 'ics'
-        }
-      });
-      calendar.render();
 
       btnToday.addEventListener('click', function() {
         lastInteractionTime = Date.now();
@@ -528,12 +545,15 @@
         const mapContainer = document.getElementById('shoot-map-container');
         const pageContainer = document.getElementById('page-container');
 
-        const events = calendar.getEvents();
         const now = new Date();
         const currentDay = now.getDay();
         const isEvening = now.getHours() >= 12; 
 
-        // 1. Calculate the static "Future" Date (Tomorrow or Monday)
+        // 1. Calculate Target/Future Dates
+        let targetDate = new Date();
+        let targetTitleText = "TOMORROW";
+        let defaultTab = 'today';
+
         let futureDate = new Date();
         let futureTitle = "TOMORROW";
         
@@ -551,26 +571,60 @@
             futureTitle = "TOMORROW";
         }
 
-        // 2. Set Default Tab logic (Off the Clock forces Tomorrow tab)
-        let defaultTab = 'today';
         if (currentDay === 0 || currentDay === 6 || (dweetStatus.toLowerCase() === "off the clock" && isEvening)) {
+            targetDate = futureDate;
+            targetTitleText = futureTitle;
             defaultTab = 'tomorrow';
+        } else {
+            targetDate = new Date(); 
+            targetTitleText = "TODAY";
+            defaultTab = 'today';
         }
 
-        // Rename tab button dynamically
         if (currentDay === 5 || currentDay === 6 || currentDay === 0) {
            btnTomorrow.innerText = "Monday";
         } else {
            btnTomorrow.innerText = "Tomorrow";
         }
 
+        // 2. Background Logic (Reads strictly from the Brain Calendar)
+        const brainEvents = brainCalendar.getEvents();
+        
         let isWfhFuture = false;
         let isOooFuture = false;
         let foundWfhToday = false;
         let foundOooToday = false;
         let todayObj = new Date();
 
-        events.forEach(event => {
+        brainEvents.forEach(event => {
+          let currentTitle = event.title || "";
+          let titleUpper = currentTitle.toUpperCase();
+          
+          let isWfhEvent = (titleUpper === 'WFH' || titleUpper === 'WORKING FROM HOME');
+          let isOooEvent = (titleUpper === 'OOO');
+          
+          if ((isWfhEvent || isOooEvent) && event.allDay && event.start) {
+            let eStart = new Date(event.start.getFullYear(), event.start.getMonth(), event.start.getDate()).getTime();
+            let eEnd = event.end ? new Date(event.end.getFullYear(), event.end.getMonth(), event.end.getDate()).getTime() : eStart + 86400000;
+            
+            let targetTime = new Date(futureDate.getFullYear(), futureDate.getMonth(), futureDate.getDate()).getTime();
+            let todayTime = new Date(todayObj.getFullYear(), todayObj.getMonth(), todayObj.getDate()).getTime();
+
+            if (targetTime >= eStart && targetTime < eEnd) {
+              if (isWfhEvent) isWfhFuture = true;
+              if (isOooEvent) isOooFuture = true;
+            }
+            if (todayTime >= eStart && todayTime < eEnd) {
+              if (isWfhEvent) foundWfhToday = true;
+              if (isOooEvent) foundOooToday = true;
+            }
+          }
+        });
+
+        // 3. Visual Styling (Only loops over the currently visible Visual Calendar)
+        const visualEvents = calendar.getEvents();
+
+        visualEvents.forEach(event => {
           let shouldHighlight = false;
           let isTimeActive = (!event.allDay && event.start && event.end && now >= event.start && now < event.end);
           let isPast = (!event.allDay && event.end && now >= event.end); 
@@ -591,26 +645,6 @@
           let isWfhEvent = (titleUpper === 'WFH' || titleUpper === 'WORKING FROM HOME');
           let isOooEvent = (titleUpper === 'OOO');
           
-          if ((isWfhEvent || isOooEvent) && event.allDay && event.start) {
-            // Convert start and end dates to clean timestamps (FullCalendar 'end' is the day after the event finishes)
-            let eStart = new Date(event.start.getFullYear(), event.start.getMonth(), event.start.getDate()).getTime();
-            let eEnd = event.end ? new Date(event.end.getFullYear(), event.end.getMonth(), event.end.getDate()).getTime() : eStart + 86400000;
-            
-            let targetTime = new Date(futureDate.getFullYear(), futureDate.getMonth(), futureDate.getDate()).getTime();
-            let todayTime = new Date(todayObj.getFullYear(), todayObj.getMonth(), todayObj.getDate()).getTime();
-
-            // Range Check for Future Date
-            if (targetTime >= eStart && targetTime < eEnd) {
-              if (isWfhEvent) isWfhFuture = true;
-              if (isOooEvent) isOooFuture = true;
-            }
-            // Range Check for Today's Date
-            if (todayTime >= eStart && todayTime < eEnd) {
-              if (isWfhEvent) foundWfhToday = true;
-              if (isOooEvent) foundOooToday = true;
-            }
-          }
-
           if (overrideMode === "auto" && isTimeActive) {
             shouldHighlight = true;
             if (!busyOverrides.includes(dweetStatus)) {
@@ -647,7 +681,7 @@
           }
         });
 
-        // 3. Determine Final Base Statuses
+        // 4. Lock in final base statuses from the Brain 
         if (foundOooToday) {
             todayBaseStatus = "Out of Office";
         } else if (foundWfhToday) {
@@ -667,7 +701,7 @@
         let effectiveTodayStatus = activeOverridesList.includes(dweetStatus) ? dweetStatus : todayBaseStatus;
         let statusLower = effectiveTodayStatus.toLowerCase();
 
-        // 4. Color Helper Function
+        // 5. Color Helper Function
         function getColorForStatus(status) {
             if (status === "In Office") return "#4ade80";
             if (status === "Working From Home") return "#38bdf8";
@@ -679,28 +713,26 @@
             return "#ffffff";
         }
 
-        // 5. DISPLAY RENDERER - Dynamically updates based on which Tab is active
+        // 6. UI RENDERER - Dynamically updates based on which Tab is active
         let activeTab = btnTomorrow.classList.contains('active') ? 'tomorrow' : 'today';
 
         if (activeTab === 'tomorrow') {
-            // User is looking at the Tomorrow/Monday schedule tab
+            // Future Schedule View (Clears local context elements)
             mainTitle.innerText = futureTitle; 
             mainBadge.innerText = futureBaseStatus;
             mainBadge.style.color = getColorForStatus(futureBaseStatus);
             
-            // Clean up the UI context for a future date
             availContainer.style.display = "none";
             targetDayContainer.style.display = "none";
             mapContainer.style.display = "none";
             pageContainer.style.display = "none";
             
         } else {
-            // User is looking at the Today schedule tab
+            // Today Schedule View (Handles map, paging, and bottom context box)
             mainTitle.innerText = "CURRENTLY";
             mainBadge.innerText = effectiveTodayStatus;
             mainBadge.style.color = getColorForStatus(effectiveTodayStatus);
 
-            // Map Logic
             if (effectiveTodayStatus === "On Shoot" && dweetMapData) {
                 document.getElementById('shoot-location-name').innerText = `📍 ${dweetMapData.name}`;
                 mapContainer.style.display = "block";
@@ -722,14 +754,13 @@
                 }
             }
 
-            // Paging Button
             if (effectiveTodayStatus === "Stepped Out") {
                 pageContainer.style.display = "block";
             } else {
                 pageContainer.style.display = "none";
             }
 
-            // Availability & Target Day Context Boxes
+            // Determines what goes inside the bottom context box when viewing "Today"
             if (statusLower === "off the clock") {
                 availContainer.style.display = "none";
                 targetDayContainer.style.display = "block";
@@ -752,7 +783,7 @@
             }
         }
 
-        // Busy State Calculation
+        // Busy State Update
         if (overrideMode === "busy") {
           isBusy = true;
         } else if (overrideMode === "available") {
@@ -789,11 +820,14 @@
         }
       }
 
+      // Attach refresh loop to both calendars
       setInterval(updateAvailability, 60000);
+      brainCalendar.on('eventsSet', updateAvailability);
       calendar.on('eventsSet', updateAvailability);
       document.addEventListener('locationUpdated', updateAvailability);
 
       setInterval(() => {
+        brainCalendar.refetchEvents();
         calendar.refetchEvents();
       }, 600000);
     });
