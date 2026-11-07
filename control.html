@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Door Sign">
+  <meta name="theme-color" content="#0f172a">
+  <title>Door Sign Control</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body { background-color: #0f172a; color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    body { padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(env(safe-area-inset-bottom, 0px) + 24px); max-width: 520px; margin: 0 auto; }
+
+    .now { background-color: #1e293b; border: 1px solid #334155; border-radius: 14px; padding: 14px 16px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .now .label { font-size: 0.75rem; color: #94a3b8; font-weight: 700; letter-spacing: 0.08em; }
+    .now .value { font-size: 1.5rem; font-weight: 800; line-height: 1.15; margin-top: 2px; }
+    .now .sub { font-size: 0.95rem; color: #94a3b8; margin-top: 4px; }
+    .now .sub b { color: #f87171; }
+    .now .sub b.free { color: #4ade80; }
+    .refresh { background: transparent; border: 1px solid #334155; color: #94a3b8; border-radius: 10px; padding: 10px 12px; font-size: 1.1rem; }
+
+    h2 { font-size: 0.8rem; color: #94a3b8; font-weight: 700; letter-spacing: 0.08em; margin: 18px 4px 8px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .grid .wide { grid-column: 1 / -1; }
+    button.opt {
+      background-color: #1e293b;
+      border: 2px solid #334155;
+      border-left: 8px solid var(--c, #3b82f6);
+      color: #ffffff;
+      border-radius: 12px;
+      padding: 16px 14px;
+      min-height: 64px;
+      font-size: 1.1rem;
+      font-weight: 700;
+      text-align: left;
+      line-height: 1.2;
+    }
+    button.opt:active { background-color: #334155; }
+    button.opt.current { border-color: var(--c, #3b82f6); background-color: color-mix(in srgb, var(--c, #3b82f6) 18%, #1e293b); }
+    @supports not (background-color: color-mix(in srgb, red 10%, blue)) { button.opt.current { background-color: #273449; } }
+    button.opt small { display: block; font-weight: 500; font-size: 0.8rem; color: #94a3b8; margin-top: 3px; }
+
+    /* Sheets for text entry */
+    .sheet-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); align-items: flex-end; justify-content: center; z-index: 10; }
+    .sheet-bg.open { display: flex; }
+    .sheet { background: #1e293b; border-radius: 18px 18px 0 0; padding: 20px 18px calc(env(safe-area-inset-bottom, 0px) + 20px); width: 100%; max-width: 520px; }
+    .sheet h3 { font-size: 1.2rem; margin-bottom: 14px; }
+    .sheet label { display: block; font-size: 0.85rem; color: #94a3b8; margin: 10px 0 6px; }
+    .sheet input { width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 10px; color: #fff; padding: 14px; font-size: 1.1rem; }
+    .sheet .row { display: flex; gap: 10px; margin-top: 18px; }
+    .sheet .row button { flex: 1; border: none; border-radius: 12px; padding: 16px; font-size: 1.05rem; font-weight: 800; }
+    .sheet .cancel { background: #334155; color: #cbd5e1; }
+    .sheet .go { background: #38bdf8; color: #0f172a; }
+    .results { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; max-height: 40vh; overflow-y: auto; }
+    .results button { background: #0f172a; border: 1px solid #334155; color: #fff; border-radius: 10px; padding: 12px; text-align: left; font-size: 0.95rem; line-height: 1.25; }
+    .results button b { display: block; font-size: 1.05rem; }
+    .results button span { color: #94a3b8; font-size: 0.85rem; }
+    .hint { font-size: 0.8rem; color: #64748b; margin-top: 6px; }
+
+    .toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 20px); transform: translateX(-50%); background: #4ade80; color: #0f172a; font-weight: 800; padding: 12px 20px; border-radius: 999px; opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 20; white-space: nowrap; }
+    .toast.show { opacity: 1; }
+    .toast.err { background: #f87171; color: #fff; }
+  </style>
+</head>
+<body>
+  <div class="now">
+    <div>
+      <div class="label">SIGN IS SHOWING</div>
+      <div class="value" id="now-status">…</div>
+      <div class="sub" id="now-sub"></div>
+    </div>
+    <button class="refresh" id="refresh" aria-label="Refresh">↻</button>
+  </div>
+
+  <h2>LOCATION</h2>
+  <div class="grid" id="loc-grid">
+    <button class="opt wide" style="--c:#4ade80" data-send="status=Auto" data-key="auto">Auto <small>Calendar decides: In Office / WFH / OOO</small></button>
+    <button class="opt" style="--c:#facc15" data-send="status=Stepped%20Out" data-key="stepped out">Stepped Out</button>
+    <button class="opt" style="--c:#fb923c" data-send="status=On%20Lunch" data-key="on lunch">On Lunch</button>
+    <button class="opt" style="--c:#f87171" data-send="status=Meeting" data-key="meeting">Meeting</button>
+    <button class="opt" style="--c:#f87171" data-action="shoot" data-key="on shoot">On Shoot… <small>with map pin</small></button>
+    <button class="opt" style="--c:#94a3b8" data-send="status=Off%20the%20Clock" data-key="off the clock">Off the Clock</button>
+    <button class="opt" style="--c:#ffffff" data-action="custom">Custom…</button>
+  </div>
+
+  <h2>AVAILABILITY</h2>
+  <div class="grid" id="avail-grid">
+    <button class="opt wide" style="--c:#4ade80" data-send="mode=auto&target=&status=Auto" data-mode="auto">Auto <small>Calendar decides, location resets</small></button>
+    <button class="opt" style="--c:#4ade80" data-send="mode=available&target=&status=Auto" data-mode="available">Force Available</button>
+    <button class="opt" style="--c:#f87171" data-action="busy" data-mode="busy">Force Busy… <small>project + until</small></button>
+  </div>
+
+  <h2>DOOR</h2>
+  <div class="grid">
+    <button class="opt wide" style="--c:#38bdf8" data-action="reply">Reply to someone at the door…</button>
+  </div>
+
+  <!-- Sheets -->
+  <div class="sheet-bg" id="sheet-busy"><div class="sheet">
+    <h3>Force Busy</h3>
+    <label>What are you working on? (highlights the matching project; blank for none)</label>
+    <input id="busy-target" placeholder="e.g. Lakeshore">
+    <label>Busy until? (2:30 PM, 14:30, or 90 for minutes; blank for no time)</label>
+    <input id="busy-until" placeholder="e.g. 2:30 PM">
+    <div class="row"><button class="cancel" data-close>Cancel</button><button class="go" id="busy-go">Set Busy</button></div>
+  </div></div>
+
+  <div class="sheet-bg" id="sheet-custom"><div class="sheet">
+    <h3>Custom status</h3>
+    <input id="custom-text" placeholder="e.g. On the Weather Deck">
+    <div class="row"><button class="cancel" data-close>Cancel</button><button class="go" id="custom-go">Show it</button></div>
+  </div></div>
+
+  <div class="sheet-bg" id="sheet-reply"><div class="sheet">
+    <h3>Reply to the door</h3>
+    <div class="results" id="reply-presets">
+      <button data-preset="On my way!">On my way!</button>
+      <button data-preset="Give me 5 minutes.">Give me 5 minutes.</button>
+      <button data-preset="In a meeting — catch me later.">In a meeting — catch me later.</button>
+    </div>
+    <label>Or type your own</label>
+    <input id="reply-text" placeholder="Message shown on the sign for 15 minutes">
+    <div class="row"><button class="cancel" data-close>Cancel</button><button class="go" id="reply-go">Send</button></div>
+  </div></div>
+
+  <div class="sheet-bg" id="sheet-shoot"><div class="sheet">
+    <h3>On Shoot</h3>
+    <label>Where? Type a business or address, then pick a result</label>
+    <input id="shoot-query" placeholder="e.g. Weesies Greenhouse">
+    <div class="row" style="margin-top:10px"><button class="cancel" id="shoot-search" style="background:#334155;color:#fff">Search</button><button class="go" id="shoot-nomap">No map, just status</button></div>
+    <div class="results" id="shoot-results"></div>
+    <div class="hint">Search uses OpenStreetMap. Tap a result to send it to the sign.</div>
+    <div class="row"><button class="cancel" data-close>Cancel</button></div>
+  </div></div>
+
+  <div class="toast" id="toast">Sign updated</div>
+
+  <script>
+    // ============================================================
+    // CONFIG
+    // ============================================================
+    const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbxN_FkiY8ceodCnfIwDpw91QBpIikpYsKpqMAxc5d12oFdnUczVcYyM2B9NRskd4Sf0wg/exec';
+    const KEY = 'dibaflabigumugibalfabid';
+
+    const $ = id => document.getElementById(id);
+    const enc = s => encodeURIComponent(String(s || '').trim());
+    let toastTimer;
+
+    function toast(msg, err) {
+      const t = $('toast');
+      t.innerText = msg;
+      t.className = 'toast show' + (err ? ' err' : '');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { t.className = 'toast' + (err ? ' err' : ''); }, 1800);
+    }
+
+    async function send(query) {
+      try {
+        const r = await fetch(`${BACKEND_URL}?key=${KEY}&${query}&t=${Date.now()}`, { cache: 'no-store' });
+        const j = await r.json();
+        if (!j.ok) throw new Error(j.error || 'rejected');
+        toast('Sign updated');
+        closeSheets();
+        paint(j);
+      } catch (e) {
+        toast('Could not reach the sign', true);
+      }
+    }
+
+    async function refresh() {
+      try {
+        const r = await fetch(`${BACKEND_URL}?t=${Date.now()}`, { cache: 'no-store' });
+        paint(await r.json());
+      } catch (e) {
+        $('now-status').innerText = 'Offline';
+        $('now-sub').innerText = '';
+      }
+    }
+
+    function sameDay(iso) { const d = new Date(iso), n = new Date(); return d.toDateString() === n.toDateString(); }
+
+    function paint(j) {
+      const loc = j.location || {}, ov = j.override || {};
+      const status = (loc.status && sameDay(loc.updated)) ? loc.status : 'Auto';
+      const mode = (ov.mode && sameDay(ov.updated)) ? ov.mode : 'auto';
+      $('now-status').innerText = status;
+      let sub = '';
+      if (mode === 'busy') sub = `Availability: <b>Busy</b>${ov.target ? ' · ' + ov.target : ''}${ov.until ? ' · until ' + ov.until : ''}`;
+      else if (mode === 'available') sub = 'Availability: <b class="free">Available</b> (forced)';
+      else sub = 'Availability: calendar decides';
+      $('now-sub').innerHTML = sub;
+
+      const sl = status.toLowerCase();
+      document.querySelectorAll('#loc-grid .opt').forEach(b => {
+        const k = b.dataset.key;
+        const isAuto = ['auto', 'in office', 'working from home', 'out of office', ''].includes(sl);
+        b.classList.toggle('current', k === sl || (k === 'auto' && isAuto));
+      });
+      document.querySelectorAll('#avail-grid .opt').forEach(b => b.classList.toggle('current', b.dataset.mode === mode));
+    }
+
+    // ---- Buttons ----
+    document.querySelectorAll('button[data-send]').forEach(b => b.addEventListener('click', () => send(b.dataset.send)));
+    document.querySelectorAll('button[data-action]').forEach(b => b.addEventListener('click', () => openSheet('sheet-' + b.dataset.action)));
+    document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeSheets));
+    document.querySelectorAll('.sheet-bg').forEach(bg => bg.addEventListener('click', e => { if (e.target === bg) closeSheets(); }));
+    $('refresh').addEventListener('click', refresh);
+
+    function openSheet(id) { closeSheets(); $(id).classList.add('open'); const inp = $(id).querySelector('input'); if (inp) setTimeout(() => inp.focus(), 50); }
+    function closeSheets() { document.querySelectorAll('.sheet-bg').forEach(s => s.classList.remove('open')); }
+
+    $('busy-go').addEventListener('click', () => send(`mode=busy&status=Auto&target=${enc($('busy-target').value)}&until=${enc($('busy-until').value)}`));
+    $('custom-go').addEventListener('click', () => { const v = $('custom-text').value.trim(); if (v) send(`status=${enc(v)}`); });
+    $('reply-go').addEventListener('click', () => { const v = $('reply-text').value.trim(); if (v) send(`message=${enc(v)}`); });
+    document.querySelectorAll('#reply-presets button').forEach(b => b.addEventListener('click', () => send(`message=${enc(b.dataset.preset)}`)));
+
+    // ---- On Shoot: place search via OpenStreetMap (no key needed) ----
+    $('shoot-nomap').addEventListener('click', () => {
+      const name = $('shoot-query').value.trim();
+      send(`status=On%20Shoot&name=${enc(name)}`);
+    });
+    $('shoot-search').addEventListener('click', searchPlaces);
+    $('shoot-query').addEventListener('keydown', e => { if (e.key === 'Enter') searchPlaces(); });
+
+    async function searchPlaces() {
+      const q = $('shoot-query').value.trim();
+      const box = $('shoot-results');
+      if (!q) return;
+      box.innerHTML = '<div class="hint">Searching…</div>';
+      try {
+        const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&countrycodes=us&q=${enc(q)}`;
+        const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
+        const list = await r.json();
+        box.innerHTML = '';
+        if (!list.length) { box.innerHTML = '<div class="hint">No matches. Try adding the city.</div>'; return; }
+        list.forEach(p => {
+          const b = document.createElement('button');
+          const name = p.name || p.display_name.split(',')[0];
+          b.innerHTML = `<b></b><span></span>`;
+          b.querySelector('b').innerText = name;
+          b.querySelector('span').innerText = p.display_name;
+          b.addEventListener('click', () => send(`status=On%20Shoot&name=${enc(name)}&lat=${p.lat}&lon=${p.lon}`));
+          box.appendChild(b);
+        });
+      } catch (e) {
+        box.innerHTML = '<div class="hint">Search failed. You can still send the status without a map.</div>';
+      }
+    }
+
+    refresh();
+    setInterval(refresh, 30000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+  </script>
+</body>
+</html>
