@@ -44,13 +44,14 @@
     .status-value.small { font-size: clamp(1.5rem, 3.2vw, 2.2rem); }
     .avail-pill {
       display: inline-block;
-      margin-top: 14px;
-      padding: 10px 16px;
+      margin-top: 12px;
+      padding: 9px 14px;
       border-radius: 999px;
       font-weight: 800;
-      font-size: clamp(1.1rem, 2.1vw, 1.55rem);
+      font-size: clamp(1rem, 1.85vw, 1.35rem);
       line-height: 1.1;
       color: #0f172a;
+      white-space: nowrap;
     }
     .avail-pill.busy { background-color: #f87171; }
     .avail-pill.free { background-color: #4ade80; }
@@ -103,32 +104,38 @@
     }
     .tab-btn.active { background-color: #38bdf8; color: #0f172a; }
     #schedule { flex: 1 1 auto; overflow-y: auto; min-height: 0; }
-    .chips { display: none; flex-wrap: wrap; gap: 8px; padding: 2px 0 10px; border-bottom: 1px solid #334155; margin-bottom: 4px; }
-    .chip {
+    .section-label { font-size: clamp(0.75rem, 1.3vw, 0.95rem); color: #94a3b8; font-weight: 700; letter-spacing: 0.08em; margin: 6px 4px 6px; }
+    .projects { display: none; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+    .project-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
       background-color: #0f172a;
       border: 2px solid #334155;
-      border-radius: 8px;
-      padding: 8px 12px;
-      font-size: clamp(0.95rem, 1.8vw, 1.25rem);
-      font-weight: 600;
-      color: #ffffff;
-      line-height: 1.2;
+      border-left: 8px solid #a855f7;
+      border-radius: 10px;
+      padding: 12px 14px;
     }
-    .chip.done { opacity: 0.35; text-decoration: line-through; }
-    .chip.active { border-color: #38bdf8; background-color: rgba(56, 189, 248, 0.15); }
+    .project-title { font-size: clamp(1.3rem, 2.6vw, 1.9rem); font-weight: 700; color: #ffffff; line-height: 1.15; flex: 1; }
+    .project-row.done { opacity: 0.35; padding: 6px 14px; border-left-color: #64748b; }
+    .project-row.done .project-title { text-decoration: line-through; font-size: clamp(1rem, 1.9vw, 1.3rem); font-weight: 600; }
+    .project-row.active { background-color: #38bdf8; border-color: #38bdf8; border-left-color: #0ea5e9; padding: 16px 14px; }
+    .project-row.active .project-title { color: #0f172a; font-size: clamp(1.5rem, 3vw, 2.2rem); font-weight: 800; }
+    .project-row.active .now-mark { font-size: clamp(0.75rem, 1.3vw, 0.95rem); font-weight: 800; letter-spacing: 0.08em; color: #0f172a; background-color: rgba(15, 23, 42, 0.18); padding: 4px 8px; border-radius: 6px; }
+    .project-row .done-mark { font-size: 1.1rem; color: #4ade80; }
     .event-row {
       display: flex;
       gap: 14px;
       align-items: center;
-      padding: 10px 12px;
+      padding: 8px 12px;
       border: 2px solid transparent;
       border-bottom-color: #334155;
       border-radius: 8px;
     }
     .event-time { flex: none; width: clamp(6rem, 10.5vw, 7.6rem); line-height: 1.15; white-space: nowrap; }
-    .event-start { font-size: clamp(1.05rem, 2vw, 1.4rem); font-weight: 700; color: #ffffff; }
+    .event-start { font-size: clamp(1rem, 1.85vw, 1.25rem); font-weight: 700; color: #ffffff; }
     .event-end { font-size: clamp(0.8rem, 1.4vw, 1rem); color: #94a3b8; }
-    .event-title { flex: 1; font-size: clamp(1.1rem, 2.1vw, 1.5rem); line-height: 1.2; color: #ffffff; }
+    .event-title { flex: 1; font-size: clamp(1rem, 1.9vw, 1.35rem); line-height: 1.2; color: #ffffff; }
     .event-row.soft .event-title { color: #94a3b8; font-style: italic; }   /* Show As: Free or Tentative */
     .event-row.active { background-color: rgba(56, 189, 248, 0.15); border-color: #38bdf8; }
     .event-row.active .event-title, .event-row.active .event-start { font-weight: 800; color: #ffffff; }
@@ -180,7 +187,9 @@
         </div>
       </div>
       <div id="schedule">
-        <div class="chips" id="chips"></div>
+        <div class="section-label" id="projects-label" style="display:none;">WORKING ON</div>
+        <div class="projects" id="projects"></div>
+        <div class="section-label" id="meetings-label" style="display:none;">MEETINGS &amp; SHOOTS</div>
         <div id="event-list"></div>
       </div>
     </div>
@@ -391,10 +400,27 @@
       return todayBase;
     }
 
+    // "until" can be "2:30 PM", "14:30", or a number of minutes ("90"), measured from when it was sent
+    function parseUntil(text, sentAt) {
+      const t = String(text || '').trim().toLowerCase();
+      if (!t) return null;
+      if (/^\d{1,3}$/.test(t)) return new Date(sentAt.getTime() + parseInt(t, 10) * 60000);
+      const m = t.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm|a|p)?$/);
+      if (!m) return null;
+      let h = parseInt(m[1], 10), min = m[2] ? parseInt(m[2], 10) : 0;
+      const ap = m[3];
+      if (ap && ap[0] === 'p' && h < 12) h += 12;
+      if (ap && ap[0] === 'a' && h === 12) h = 0;
+      if (!ap && h < 7) h += 12;   // bare "2:30" during the workday means 2:30 PM
+      return new Date(sentAt.getFullYear(), sentAt.getMonth(), sentAt.getDate(), h, min);
+    }
+
     function currentOverride(now) {
       const o = state.override;
-      if (!isFresh(o, now)) return { mode: 'auto', target: '' };
-      return { mode: String(o.mode || 'auto').toLowerCase(), target: String(o.target || '').trim() };
+      if (!isFresh(o, now)) return { mode: 'auto', target: '', until: null };
+      const until = parseUntil(o.until, new Date(o.updated));
+      if (until && now >= until) return { mode: 'auto', target: '', until: null };   // expired → back to auto
+      return { mode: String(o.mode || 'auto').toLowerCase(), target: String(o.target || '').trim(), until };
     }
 
     // ============================================================
@@ -453,7 +479,7 @@
       const activeBusy = todayEvents.filter(ev => isActiveNow(ev, now) && isBusyEvent(ev));
       const calendarBusy = activeBusy.length > 0;
       let isBusy, untilText = '';
-      if (ov.mode === 'busy') isBusy = true;
+      if (ov.mode === 'busy') { isBusy = true; if (ov.until) untilText = ' until ' + fmtTime(ov.until); }
       else if (ov.mode === 'available') isBusy = false;
       else {
         isBusy = BUSY_OVERRIDES.includes(statusLower) || calendarBusy;
@@ -490,23 +516,30 @@
       const terms = ov.mode === 'busy' ? ov.target.toLowerCase().split(/\s+/).filter(Boolean) : [];
       const matchesTarget = title => terms.length > 0 && terms.every(t => title.toLowerCase().includes(t));
 
-      const chips = $('chips'), list = $('event-list');
-      chips.innerHTML = '';
+      const projects = $('projects'), list = $('event-list');
+      projects.innerHTML = '';
       list.innerHTML = '';
 
-      // All-day items become compact chips
-      const allDay = events.filter(ev => ev.allDay);
+      // All-day items are the day's projects: big rows at the top, finished ones sink and shrink
+      const allDay = events.filter(ev => ev.allDay).sort((a, b) => isDone(a) - isDone(b));
       allDay.forEach(ev => {
         const done = isDone(ev), title = cleanTitle(ev.title);
-        const c = document.createElement('div');
-        c.className = 'chip' + (done ? ' done' : (matchesTarget(title) ? ' active' : ''));
-        c.innerText = title;
-        chips.appendChild(c);
+        const row = document.createElement('div');
+        row.className = 'project-row' + (done ? ' done' : (matchesTarget(title) ? ' active' : ''));
+        const t = document.createElement('div');
+        t.className = 'project-title';
+        t.innerText = title;
+        row.appendChild(t);
+        if (done) { const m = document.createElement('div'); m.className = 'done-mark'; m.innerText = '✓'; row.appendChild(m); }
+        else if (row.classList.contains('active')) { const m = document.createElement('div'); m.className = 'now-mark'; m.innerText = 'NOW'; row.appendChild(m); }
+        projects.appendChild(row);
       });
-      chips.style.display = allDay.length ? 'flex' : 'none';
+      projects.style.display = allDay.length ? 'flex' : 'none';
+      $('projects-label').style.display = allDay.length ? 'block' : 'none';
 
       // Timed items: past ones collapse, the active one is highlighted
       const timed = events.filter(ev => !ev.allDay);
+      $('meetings-label').style.display = (timed.length && allDay.length) ? 'block' : 'none';
       if (timed.length === 0 && allDay.length === 0) {
         const e = document.createElement('div');
         e.className = 'empty';
