@@ -164,7 +164,7 @@
     // CONFIG — the only lines you need to edit
     // ============================================================
     const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbxN_FkiY8ceodCnfIwDpw91QBpIikpYsKpqMAxc5d12oFdnUczVcYyM2B9NRskd4Sf0wg/exec';
-    const NTFY_TOPIC  = 'PASTE_A_NEW_RANDOM_NTFY_TOPIC_HERE';
+    const NTFY_TOPIC  = 'door-tv43rbrnglisieaf6zau';
 
     const STATE_POLL_MS  = 30 * 1000;        // how often to check status/overrides
     const CAL_POLL_MS    = 10 * 60 * 1000;   // how often to re-download the calendar
@@ -399,53 +399,42 @@
       const availBox = $('availability-container'), targetBox = $('target-day-container');
       const mapBox = $('shoot-map-container'), pageBox = $('page-container'), replyBox = $('reply-container');
 
-      if (!viewingToday) {
-        mainTitle.innerText = fut.title;
-        mainBadge.innerText = futureBase;
-        mainBadge.style.color = COLORS[futureBase.toLowerCase()] || '#ffffff';
-        availBox.style.display = 'none';
-        targetBox.style.display = 'none';
-        pageBox.style.display = 'none';
-        replyBox.style.display = 'none';
-        destroyMap(mapBox);
+      // The left column always describes NOW; the tabs only change the schedule list.
+      mainTitle.innerText = 'CURRENTLY';
+      mainBadge.innerText = status;
+      mainBadge.style.color = COLORS[statusLower] || '#ffffff';
+
+      // Map
+      const loc = state.location;
+      if (statusLower === 'on shoot' && loc && loc.lat && loc.lon) showMap(mapBox, loc);
+      else destroyMap(mapBox);
+
+      // Reply message (replaces the Page button while visible)
+      const rep = state.reply;
+      const replyAge = rep && rep.updated ? Date.now() - new Date(rep.updated).getTime() : Infinity;
+      const replyVisible = rep && rep.message && replyAge < REPLY_TTL_MS;
+      if (replyVisible) {
+        $('reply-text').innerText = rep.message;
+        const mins = Math.floor(replyAge / 60000);
+        $('reply-time').innerText = mins < 1 ? 'Received just now' : `Received ${mins} min ago`;
+      }
+      replyBox.style.display = replyVisible ? 'block' : 'none';
+      pageBox.style.display = (statusLower === 'stepped out' && !replyVisible) ? 'block' : 'none';
+
+      // Availability box: hidden when it's implied by the status
+      const offClock = statusLower === 'off the clock';
+      availBox.style.display = (offClock || HIDE_AVAIL.includes(statusLower) || todayBase === 'Out of Office') ? 'none' : 'block';
+
+      // Next-work-day box: shown when off the clock, or whenever the future tab is being viewed
+      if (offClock || !viewingToday) {
+        const showFuture = !viewingToday || isEvening || isWeekend;
+        const tb = showFuture ? futureBase : todayBase;
+        $('target-day-title').innerText = showFuture ? fut.title : 'TODAY';
+        $('target-day-badge').innerText = tb;
+        $('target-day-badge').style.color = COLORS[tb.toLowerCase()] || '#ffffff';
+        targetBox.style.display = 'block';
       } else {
-        mainTitle.innerText = 'CURRENTLY';
-        mainBadge.innerText = status;
-        mainBadge.style.color = COLORS[statusLower] || '#ffffff';
-
-        // Map
-        const loc = state.location;
-        if (statusLower === 'on shoot' && loc && loc.lat && loc.lon) showMap(mapBox, loc);
-        else destroyMap(mapBox);
-
-        // Reply message (replaces the Page button while visible)
-        const rep = state.reply;
-        const replyAge = rep && rep.updated ? Date.now() - new Date(rep.updated).getTime() : Infinity;
-        const replyVisible = rep && rep.message && replyAge < REPLY_TTL_MS;
-        if (replyVisible) {
-          $('reply-text').innerText = rep.message;
-          const mins = Math.floor(replyAge / 60000);
-          $('reply-time').innerText = mins < 1 ? 'Received just now' : `Received ${mins} min ago`;
-        }
-        replyBox.style.display = replyVisible ? 'block' : 'none';
-        pageBox.style.display = (statusLower === 'stepped out' && !replyVisible) ? 'block' : 'none';
-
-        // Availability / next-day box
-        if (statusLower === 'off the clock') {
-          availBox.style.display = 'none';
-          targetBox.style.display = 'block';
-          const showFuture = isEvening || isWeekend;
-          $('target-day-title').innerText = showFuture ? fut.title : 'TODAY';
-          const tb = showFuture ? futureBase : todayBase;
-          $('target-day-badge').innerText = tb;
-          $('target-day-badge').style.color = COLORS[tb.toLowerCase()] || '#ffffff';
-        } else if (HIDE_AVAIL.includes(statusLower) || todayBase === 'Out of Office') {
-          availBox.style.display = 'none';
-          targetBox.style.display = 'none';
-        } else {
-          availBox.style.display = 'block';
-          targetBox.style.display = 'none';
-        }
+        targetBox.style.display = 'none';
       }
 
       // ---- Busy / Available ----
