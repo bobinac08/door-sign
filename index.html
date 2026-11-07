@@ -16,127 +16,154 @@
       height: 100vh;
       width: 100vw;
       overflow: hidden;
-      padding: 16px;
+      padding: 12px;
     }
-    .dashboard { display: grid; grid-template-columns: 280px 1fr; gap: 16px; height: 100%; }
+    .dashboard { display: grid; grid-template-columns: clamp(250px, 29vw, 330px) 1fr; gap: 12px; height: 100%; }
     .card {
       background-color: #1e293b;
       border: 1px solid #334155;
       border-radius: 12px;
-      padding: 16px;
+      padding: 12px;
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      min-height: 0;
     }
-    .card-header {
-      font-size: 1.1rem;
-      font-weight: 600;
-      color: #94a3b8;
-      margin-bottom: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-    }
-    .status-card { justify-content: space-between; }
-    .status-card > div:first-child { overflow: hidden; }
-    .clock-box { text-align: center; padding: 10px 0 0; }
-    .time { font-size: 2.5rem; font-weight: 700; color: #ffffff; }
-    .date { font-size: 0.95rem; color: #94a3b8; margin-top: 4px; }
-    .meta { font-size: 0.8rem; color: #64748b; margin-top: 6px; display: flex; justify-content: center; gap: 12px; }
-    .meta .stale { color: #f87171; font-weight: 700; }
-    .location-box {
+
+    /* ----- Left column ----- */
+    .status-card { gap: 10px; }
+    .status-box {
       background-color: #0f172a;
-      border-radius: 8px;
-      padding: 20px 16px;
-      border-left: 6px solid #3b82f6;
+      border-radius: 10px;
+      padding: 14px 16px;
+      border-left: 8px solid #3b82f6;
+      flex: none;
     }
-    .availability-box { border-left: 6px solid #a855f7; margin-top: 16px; }
-    .reply-box { border-left: 6px solid #4ade80; margin-top: 16px; display: none; }
-    .reply-text { font-size: 1.5rem; font-weight: 700; color: #ffffff; line-height: 1.2; }
-    .reply-time { font-size: 0.85rem; color: #94a3b8; margin-top: 6px; }
-    .location-title { font-size: 1.1rem; color: #94a3b8; margin-bottom: 8px; font-weight: 600; letter-spacing: 0.05em; }
-    .location-badge { font-size: 2.8rem; font-weight: 700; line-height: 1.1; overflow-wrap: anywhere; }
-    #page-container { margin-top: 16px; display: none; }
+    .status-label { font-size: clamp(0.8rem, 1.4vw, 1rem); color: #94a3b8; font-weight: 600; letter-spacing: 0.06em; margin-bottom: 4px; }
+    .status-value { font-size: clamp(2.2rem, 5vw, 3.5rem); font-weight: 800; line-height: 1.05; overflow-wrap: anywhere; }
+    .status-value.small { font-size: clamp(1.5rem, 3.2vw, 2.2rem); }
+    .avail-pill {
+      display: inline-block;
+      margin-top: 14px;
+      padding: 10px 16px;
+      border-radius: 999px;
+      font-weight: 800;
+      font-size: clamp(1.1rem, 2.1vw, 1.55rem);
+      line-height: 1.1;
+      color: #0f172a;
+    }
+    .avail-pill.busy { background-color: #f87171; }
+    .avail-pill.free { background-color: #4ade80; }
+    #page-container { display: none; flex: none; }
     .page-btn {
       width: 100%;
       background-color: #facc15;
       color: #0f172a;
       border: none;
-      border-radius: 8px;
+      border-radius: 10px;
       padding: 16px;
-      font-size: 1.4rem;
+      min-height: 56px;
+      font-size: clamp(1.1rem, 2.1vw, 1.5rem);
       font-weight: 800;
       cursor: pointer;
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      transition: background-color 0.2s ease;
     }
     .page-btn:active { transform: scale(0.98); }
     .page-btn:disabled { background-color: #334155; color: #94a3b8; cursor: not-allowed; }
-    .tab-container { display: flex; gap: 4px; background-color: #0f172a; padding: 3px; border-radius: 8px; border: 1px solid #334155; }
+    .reply-box { border-left-color: #4ade80; display: none; }
+    .reply-text { font-size: clamp(1.2rem, 2.3vw, 1.6rem); font-weight: 700; color: #ffffff; line-height: 1.2; }
+    .reply-time { font-size: 0.85rem; color: #94a3b8; margin-top: 6px; }
+    #shoot-map-container { display: none; flex: 4 1 auto; min-height: 0; flex-direction: column; gap: 6px; }
+    #shoot-location-name { font-size: clamp(1rem, 1.9vw, 1.3rem); color: #38bdf8; font-weight: 600; text-align: center; flex: none; }
+    #shoot-map { flex: 1 1 auto; min-height: 90px; width: 100%; border-radius: 8px; border: 1px solid #334155; z-index: 1; }
+    .spacer { flex: 1 1 0; min-height: 0; }
+    .clock-box { text-align: center; flex: none; padding-top: 4px; }
+    .time { font-size: clamp(1.8rem, 3.6vw, 2.6rem); font-weight: 700; color: #ffffff; line-height: 1.1; }
+    .date { font-size: clamp(0.85rem, 1.5vw, 1rem); color: #94a3b8; margin-top: 2px; }
+    .meta { font-size: 0.78rem; color: #64748b; margin-top: 4px; display: flex; justify-content: center; gap: 12px; }
+    .meta .stale { color: #f87171; font-weight: 700; }
+
+    /* ----- Schedule ----- */
+    .sched-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; flex: none; }
+    .day-label { font-size: clamp(1.1rem, 2.1vw, 1.5rem); font-weight: 700; color: #38bdf8; }
+    .tab-container { display: flex; gap: 4px; background-color: #0f172a; padding: 4px; border-radius: 10px; border: 1px solid #334155; }
     .tab-btn {
       background: transparent;
       border: none;
       color: #94a3b8;
-      padding: 6px 12px;
-      font-size: 0.85rem;
+      padding: 10px 18px;
+      min-height: 44px;
+      font-size: clamp(0.85rem, 1.5vw, 1.05rem);
       font-weight: 700;
-      border-radius: 6px;
+      border-radius: 8px;
       cursor: pointer;
       text-transform: uppercase;
       letter-spacing: 0.05em;
     }
     .tab-btn.active { background-color: #38bdf8; color: #0f172a; }
-    #shoot-map-container { display: none; margin-top: 16px; border-top: 1px solid #334155; padding-top: 16px; }
-    #shoot-location-name { font-size: 1.2rem; color: #38bdf8; font-weight: 600; margin-bottom: 8px; text-align: center; }
-    #shoot-map { height: 180px; width: 100%; border-radius: 8px; border: 1px solid #334155; z-index: 1; }
-
-    /* Schedule list */
-    #schedule { flex-grow: 1; overflow-y: auto; }
-    .day-header { color: #38bdf8; font-size: 1.4rem; font-weight: 700; padding: 16px; background-color: #0f172a; border-radius: 8px 8px 0 0; }
-    .event-row { display: flex; gap: 16px; padding: 14px 16px; border-bottom: 1px solid #334155; align-items: baseline; border-radius: 8px; }
-    .event-time { color: #94a3b8; font-size: 1.3rem; font-weight: 600; min-width: 10.5rem; }
-    .event-title { color: #ffffff; font-size: 1.5rem; flex: 1; }
-    .event-row.active { background-color: rgba(56, 189, 248, 0.15); border: 2px solid #38bdf8; }
-    .event-row.active .event-title { font-size: 1.8rem; font-weight: 800; }
-    .event-row.active .event-time { color: #ffffff; font-size: 1.5rem; font-weight: 700; }
-    .event-row.past .event-title, .event-row.past .event-time { opacity: 0.3; text-decoration: line-through; }
-    .empty { color: #94a3b8; font-size: 1.5rem; text-align: center; padding: 40px; }
+    #schedule { flex: 1 1 auto; overflow-y: auto; min-height: 0; }
+    .chips { display: none; flex-wrap: wrap; gap: 8px; padding: 2px 0 10px; border-bottom: 1px solid #334155; margin-bottom: 4px; }
+    .chip {
+      background-color: #0f172a;
+      border: 2px solid #334155;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: clamp(0.95rem, 1.8vw, 1.25rem);
+      font-weight: 600;
+      color: #ffffff;
+      line-height: 1.2;
+    }
+    .chip.done { opacity: 0.35; text-decoration: line-through; }
+    .chip.active { border-color: #38bdf8; background-color: rgba(56, 189, 248, 0.15); }
+    .event-row {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      padding: 10px 12px;
+      border: 2px solid transparent;
+      border-bottom-color: #334155;
+      border-radius: 8px;
+    }
+    .event-time { flex: none; width: clamp(6rem, 10.5vw, 7.6rem); line-height: 1.15; white-space: nowrap; }
+    .event-start { font-size: clamp(1.05rem, 2vw, 1.4rem); font-weight: 700; color: #ffffff; }
+    .event-end { font-size: clamp(0.8rem, 1.4vw, 1rem); color: #94a3b8; }
+    .event-title { flex: 1; font-size: clamp(1.1rem, 2.1vw, 1.5rem); line-height: 1.2; color: #ffffff; }
+    .event-row.soft .event-title { color: #94a3b8; font-style: italic; }   /* Show As: Free or Tentative */
+    .event-row.active { background-color: rgba(56, 189, 248, 0.15); border-color: #38bdf8; }
+    .event-row.active .event-title, .event-row.active .event-start { font-weight: 800; color: #ffffff; }
+    .event-row.past { padding: 5px 12px; opacity: 0.4; }
+    .event-row.past .event-end { display: none; }
+    .event-row.past .event-start { font-size: clamp(0.85rem, 1.6vw, 1.1rem); font-weight: 600; }
+    .event-row.past .event-title { font-size: clamp(0.9rem, 1.7vw, 1.15rem); text-decoration: line-through; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .empty { color: #94a3b8; font-size: clamp(1.1rem, 2.1vw, 1.5rem); text-align: center; padding: 40px 16px; }
   </style>
 </head>
 <body>
   <div class="dashboard">
     <div class="card status-card">
-      <div>
-        <div class="card-header">📍 Location &amp; Status</div>
-        <div class="location-box">
-          <div class="location-title" id="main-location-title">CURRENTLY</div>
-          <div id="location-badge" class="location-badge">Updating...</div>
-          <div id="shoot-map-container">
-            <div id="shoot-location-name"></div>
-            <div id="shoot-map"></div>
-          </div>
-        </div>
-        <div id="page-container">
-          <button id="page-button" class="page-btn">🔔 Page Me</button>
-        </div>
-        <div id="reply-container" class="location-box reply-box">
-          <div class="location-title">MESSAGE FROM ME</div>
-          <div id="reply-text" class="reply-text"></div>
-          <div id="reply-time" class="reply-time"></div>
-        </div>
-        <div id="availability-container" class="location-box availability-box">
-          <div class="location-title">AVAILABILITY</div>
-          <div id="availability-badge" class="location-badge">Loading...</div>
-        </div>
-        <div id="target-day-container" class="location-box availability-box" style="display: none;">
-          <div class="location-title" id="target-day-title">TOMORROW</div>
-          <div id="target-day-badge" class="location-badge" style="font-size: 2.2rem;">Loading...</div>
-        </div>
+      <div class="status-box" id="status-box">
+        <div class="status-label">CURRENTLY</div>
+        <div id="location-badge" class="status-value">Updating...</div>
+        <span id="availability-pill" class="avail-pill free" style="display:none;">Available</span>
       </div>
+      <div id="page-container">
+        <button id="page-button" class="page-btn">🔔 Page Me</button>
+      </div>
+      <div id="reply-container" class="status-box reply-box">
+        <div class="status-label">MESSAGE FROM ME</div>
+        <div id="reply-text" class="reply-text"></div>
+        <div id="reply-time" class="reply-time"></div>
+      </div>
+      <div id="target-day-container" class="status-box" style="display: none;">
+        <div class="status-label" id="target-day-title">TOMORROW</div>
+        <div id="target-day-badge" class="status-value small">Loading...</div>
+      </div>
+      <div id="shoot-map-container">
+        <div id="shoot-location-name"></div>
+        <div id="shoot-map"></div>
+      </div>
+      <div class="spacer"></div>
       <div class="clock-box">
         <div id="time" class="time">00:00</div>
         <div id="date" class="date">Loading date...</div>
@@ -145,15 +172,15 @@
     </div>
 
     <div class="card">
-      <div class="card-header">
-        <span>📅 Schedule</span>
+      <div class="sched-header">
+        <div class="day-label" id="day-header"></div>
         <div class="tab-container">
           <button id="btn-today" class="tab-btn active">Today</button>
           <button id="btn-tomorrow" class="tab-btn">Tomorrow</button>
         </div>
       </div>
       <div id="schedule">
-        <div class="day-header" id="day-header"></div>
+        <div class="chips" id="chips"></div>
         <div id="event-list"></div>
       </div>
     </div>
@@ -393,18 +420,18 @@
       $('btn-today').classList.toggle('active', activeTab === 'today');
       $('btn-tomorrow').classList.toggle('active', activeTab === 'tomorrow');
 
-      // ---- Left column ----
+      // ---- Left column (always describes NOW; tabs only change the schedule list) ----
       const viewingToday = activeTab === 'today';
-      const mainTitle = $('main-location-title'), mainBadge = $('location-badge');
-      const availBox = $('availability-container'), targetBox = $('target-day-container');
+      const statusBox = $('status-box'), mainBadge = $('location-badge');
+      const availPill = $('availability-pill');
+      const targetBox = $('target-day-container'), targetBadge = $('target-day-badge');
       const mapBox = $('shoot-map-container'), pageBox = $('page-container'), replyBox = $('reply-container');
+      const offClock = statusLower === 'off the clock';
 
-      // The left column always describes NOW; the tabs only change the schedule list.
-      mainTitle.innerText = 'CURRENTLY';
       mainBadge.innerText = status;
-      mainBadge.style.color = COLORS[statusLower] || '#ffffff';
+      paintBox(statusBox, COLORS[statusLower] || '#ffffff');
 
-      // Map
+      // Map (its own box so it can flex into the free space)
       const loc = state.location;
       if (statusLower === 'on shoot' && loc && loc.lat && loc.lon) showMap(mapBox, loc);
       else destroyMap(mapBox);
@@ -421,59 +448,82 @@
       replyBox.style.display = replyVisible ? 'block' : 'none';
       pageBox.style.display = (statusLower === 'stepped out' && !replyVisible) ? 'block' : 'none';
 
-      // Availability box: hidden when it's implied by the status
-      const offClock = statusLower === 'off the clock';
-      availBox.style.display = (offClock || HIDE_AVAIL.includes(statusLower) || todayBase === 'Out of Office') ? 'none' : 'block';
+      // ---- Busy / Available (with "until" when the calendar can tell us) ----
+      const todayEvents = eventsForDay(now);
+      const activeBusy = todayEvents.filter(ev => isActiveNow(ev, now) && isBusyEvent(ev));
+      const calendarBusy = activeBusy.length > 0;
+      let isBusy, untilText = '';
+      if (ov.mode === 'busy') isBusy = true;
+      else if (ov.mode === 'available') isBusy = false;
+      else {
+        isBusy = BUSY_OVERRIDES.includes(statusLower) || calendarBusy;
+        if (isBusy && calendarBusy && !BUSY_OVERRIDES.includes(statusLower)) {
+          const end = new Date(Math.max(...activeBusy.map(ev => ev.end.getTime())));
+          untilText = ' until ' + fmtTime(end);
+        } else if (!isBusy) {
+          const next = todayEvents.find(ev => !ev.allDay && ev.start > now && isBusyEvent(ev));
+          if (next) untilText = ' until ' + fmtTime(next.start);
+        }
+      }
+      availPill.innerText = (isBusy ? 'Busy' : 'Available') + untilText;
+      availPill.className = 'avail-pill ' + (isBusy ? 'busy' : 'free');
+      const hideAvail = offClock || HIDE_AVAIL.includes(statusLower) || todayBase === 'Out of Office';
+      availPill.style.display = hideAvail ? 'none' : 'inline-block';
 
       // Next-work-day box: shown when off the clock, or whenever the future tab is being viewed
       if (offClock || !viewingToday) {
         const showFuture = !viewingToday || isEvening || isWeekend;
         const tb = showFuture ? futureBase : todayBase;
         $('target-day-title').innerText = showFuture ? fut.title : 'TODAY';
-        $('target-day-badge').innerText = tb;
-        $('target-day-badge').style.color = COLORS[tb.toLowerCase()] || '#ffffff';
+        targetBadge.innerText = tb;
+        paintBox(targetBox, COLORS[tb.toLowerCase()] || '#ffffff');
         targetBox.style.display = 'block';
       } else {
         targetBox.style.display = 'none';
       }
 
-      // ---- Busy / Available ----
-      const todayEvents = eventsForDay(now);
-      const calendarBusy = todayEvents.some(ev => isActiveNow(ev, now) && isBusyEvent(ev));
-      let isBusy;
-      if (ov.mode === 'busy') isBusy = true;
-      else if (ov.mode === 'available') isBusy = false;
-      else isBusy = BUSY_OVERRIDES.includes(statusLower) || calendarBusy;
-      const ab = $('availability-badge');
-      ab.innerText = isBusy ? 'Busy' : 'Available';
-      ab.style.color = isBusy ? '#f87171' : '#4ade80';
-
-      // ---- Schedule list ----
+      // ---- Schedule ----
       const viewDay = viewingToday ? now : fut.date;
-      $('day-header').innerText = viewDay.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
-      const list = $('event-list');
-      list.innerHTML = '';
+      $('day-header').innerText = (viewingToday ? 'Today' : fut.btn) + ' · ' +
+        viewDay.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
       const events = viewingToday ? todayEvents : eventsForDay(viewDay);
-      if (events.length === 0) {
+      const terms = ov.mode === 'busy' ? ov.target.toLowerCase().split(/\s+/).filter(Boolean) : [];
+      const matchesTarget = title => terms.length > 0 && terms.every(t => title.toLowerCase().includes(t));
+
+      const chips = $('chips'), list = $('event-list');
+      chips.innerHTML = '';
+      list.innerHTML = '';
+
+      // All-day items become compact chips
+      const allDay = events.filter(ev => ev.allDay);
+      allDay.forEach(ev => {
+        const done = isDone(ev), title = cleanTitle(ev.title);
+        const c = document.createElement('div');
+        c.className = 'chip' + (done ? ' done' : (matchesTarget(title) ? ' active' : ''));
+        c.innerText = title;
+        chips.appendChild(c);
+      });
+      chips.style.display = allDay.length ? 'flex' : 'none';
+
+      // Timed items: past ones collapse, the active one is highlighted
+      const timed = events.filter(ev => !ev.allDay);
+      if (timed.length === 0 && allDay.length === 0) {
         const e = document.createElement('div');
         e.className = 'empty';
         e.innerText = 'No events scheduled.';
         list.appendChild(e);
       }
-      const terms = ov.mode === 'busy' ? ov.target.toLowerCase().split(/\s+/).filter(Boolean) : [];
-      events.forEach(ev => {
-        const done = isDone(ev);
-        const title = cleanTitle(ev.title);
-        const past = !ev.allDay && now >= ev.end;
-        let highlight = false;
-        if (ov.mode === 'auto' && viewingToday && isActiveNow(ev, now) && isBusyEvent(ev)) highlight = true;
-        if (terms.length && terms.every(t => title.toLowerCase().includes(t))) highlight = true;
-
+      timed.forEach(ev => {
+        const done = isDone(ev), title = cleanTitle(ev.title);
+        const past = now >= ev.end;
+        const highlight = !done && ((ov.mode === 'auto' && viewingToday && isActiveNow(ev, now) && isBusyEvent(ev)) || matchesTarget(title));
         const row = document.createElement('div');
-        row.className = 'event-row' + (highlight && !done ? ' active' : (past || done ? ' past' : ''));
+        row.className = 'event-row' + (highlight ? ' active' : (past || done ? ' past' : '')) + (isBusyEvent(ev) ? '' : ' soft');
         const time = document.createElement('div');
         time.className = 'event-time';
-        time.innerText = ev.allDay ? '' : `${fmtTime(ev.start)} – ${fmtTime(ev.end)}`;
+        const s = document.createElement('div'); s.className = 'event-start'; s.innerText = fmtTime(ev.start);
+        const e = document.createElement('div'); e.className = 'event-end'; e.innerText = 'to ' + fmtTime(ev.end);
+        time.appendChild(s); time.appendChild(e);
         const t = document.createElement('div');
         t.className = 'event-title';
         t.innerText = title;
@@ -491,16 +541,23 @@
       else { up.innerText = 'Updated ' + fmtTime(new Date(state.lastStateOk)); up.className = ''; }
     }
 
+    // Tints a box with its status color (border + faint background)
+    function paintBox(box, hex) {
+      box.style.borderLeftColor = hex;
+      box.style.backgroundColor = hex + '22';
+    }
+
     // ---------- Map ----------
     function showMap(box, loc) {
       const lat = parseFloat(loc.lat), lon = parseFloat(loc.lon);
       if (isNaN(lat) || isNaN(lon)) { destroyMap(box); return; }
       $('shoot-location-name').innerText = '📍 ' + (loc.name || 'Shoot Location');
-      box.style.display = 'block';
+      box.style.display = 'flex';
       if (!mapInstance) {
         mapInstance = L.map('shoot-map', { zoomControl: false, attributionControl: false }).setView([lat, lon], 13);
         L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapInstance);
         mapMarker = L.marker([lat, lon]).addTo(mapInstance);
+        setTimeout(() => { if (mapInstance) mapInstance.invalidateSize(); }, 100);
       } else {
         mapInstance.setView([lat, lon], 13);
         mapMarker.setLatLng([lat, lon]);
